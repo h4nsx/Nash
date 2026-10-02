@@ -22,6 +22,153 @@ namespace Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Domain.Entities.Skill", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Skills", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("11111111-1111-1111-1111-111111111111"),
+                            CreatedAt = new DateTime(2026, 10, 2, 16, 25, 17, 810, DateTimeKind.Utc).AddTicks(8579),
+                            Description = "Kỹ năng lập trình front-end với thư viện ReactJS.",
+                            IsActive = true,
+                            Name = "Phát triển ReactJS"
+                        },
+                        new
+                        {
+                            Id = new Guid("22222222-2222-2222-2222-222222222222"),
+                            CreatedAt = new DateTime(2026, 10, 2, 16, 25, 17, 810, DateTimeKind.Utc).AddTicks(8591),
+                            Description = "Kỹ năng xây dựng ứng dụng với ngôn ngữ C# và nền tảng .NET.",
+                            IsActive = true,
+                            Name = "Lập trình C# .NET"
+                        });
+                });
+
+            modelBuilder.Entity("Domain.Entities.SkillTest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("PassingScore")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TasksJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("TimeLimitMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Version")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SkillId");
+
+                    b.ToTable("SkillTests", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Id = new Guid("33333333-3333-3333-3333-333333333333"),
+                            CreatedAt = new DateTime(2026, 10, 2, 16, 25, 17, 810, DateTimeKind.Utc).AddTicks(8797),
+                            PassingScore = 70,
+                            SkillId = new Guid("11111111-1111-1111-1111-111111111111"),
+                            Status = 1,
+                            TasksJson = "[{\"question\":\"Hooks trong React là gì?\",\"options\":[\"Một tính năng mới trong React 16.8\",\"Một loại component\",\"Một phương thức của class\"],\"answer\":0}]",
+                            TimeLimitMinutes = 30,
+                            Title = "Bài kiểm tra ReactJS cơ bản",
+                            Version = "1.0"
+                        },
+                        new
+                        {
+                            Id = new Guid("44444444-4444-4444-4444-444444444444"),
+                            CreatedAt = new DateTime(2026, 10, 2, 16, 25, 17, 810, DateTimeKind.Utc).AddTicks(8813),
+                            PassingScore = 80,
+                            SkillId = new Guid("22222222-2222-2222-2222-222222222222"),
+                            Status = 1,
+                            TasksJson = "[{\"question\":\"Interface trong C# khác abstract class như thế nào?\",\"options\":[\"Interface không thể có field\",\"Interface không thể khai báo method\",\"Cả hai đều giống nhau\"],\"answer\":0}]",
+                            TimeLimitMinutes = 45,
+                            Title = "Bài kiểm tra C# .NET",
+                            Version = "1.0"
+                        });
+                });
+
+            modelBuilder.Entity("Domain.Entities.SkillTestAttempt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Score")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SkillTestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("SubmittedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("UserAnswersJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SkillTestId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("SkillTestAttempts", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -57,6 +204,41 @@ namespace Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Users", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.VerifiedSkill", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ExpiredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SkillTestAttemptId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("VerifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SkillId");
+
+                    b.HasIndex("SkillTestAttemptId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("VerifiedSkills", (string)null);
                 });
 
             modelBuilder.Entity("Infrastructure.Identity.ApplicationUser", b =>
@@ -255,6 +437,63 @@ namespace Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.SkillTest", b =>
+                {
+                    b.HasOne("Domain.Entities.Skill", "Skill")
+                        .WithMany("Tests")
+                        .HasForeignKey("SkillId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Skill");
+                });
+
+            modelBuilder.Entity("Domain.Entities.SkillTestAttempt", b =>
+                {
+                    b.HasOne("Domain.Entities.SkillTest", "SkillTest")
+                        .WithMany("Attempts")
+                        .HasForeignKey("SkillTestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.User", "User")
+                        .WithMany("Attempts")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SkillTest");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Domain.Entities.VerifiedSkill", b =>
+                {
+                    b.HasOne("Domain.Entities.Skill", "Skill")
+                        .WithMany()
+                        .HasForeignKey("SkillId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.SkillTestAttempt", "Attempt")
+                        .WithMany()
+                        .HasForeignKey("SkillTestAttemptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.User", "User")
+                        .WithMany("VerifiedSkills")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Attempt");
+
+                    b.Navigation("Skill");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -304,6 +543,23 @@ namespace Infrastructure.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("Domain.Entities.Skill", b =>
+                {
+                    b.Navigation("Tests");
+                });
+
+            modelBuilder.Entity("Domain.Entities.SkillTest", b =>
+                {
+                    b.Navigation("Attempts");
+                });
+
+            modelBuilder.Entity("Domain.Entities.User", b =>
+                {
+                    b.Navigation("Attempts");
+
+                    b.Navigation("VerifiedSkills");
                 });
 #pragma warning restore 612, 618
         }

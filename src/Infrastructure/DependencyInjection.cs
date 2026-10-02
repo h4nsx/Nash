@@ -3,6 +3,7 @@ using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Infrastructure.Identity;
+using Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -31,6 +32,7 @@ public static class DependencyInjection
 
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IIdentityService, IdentityService>();
+            services.AddScoped<ISkillService, SkillService>();
         }
 
         return services;

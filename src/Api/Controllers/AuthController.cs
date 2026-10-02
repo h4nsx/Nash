@@ -21,17 +21,17 @@ public class AuthController : ControllerBase
     {
         if (!Enum.TryParse<Role>(request.Role, true, out var role))
         {
-            return BadRequest(new ApiErrorResponse { StatusCode = 400, Code = "INVALID_ROLE", Message = "Invalid role specified." });
+            return BadRequest(new ApiErrorResponse { StatusCode = 400, Code = "INVALID_ROLE", Message = "Vai trò không hợp lệ." });
         }
 
         var (success, errors) = await _identityService.RegisterUserAsync(request.Email, request.Password, request.FirstName, request.LastName, role);
 
         if (!success)
         {
-            return BadRequest(new ApiErrorResponse { StatusCode = 400, Code = "REGISTRATION_FAILED", Message = "User registration failed.", Errors = new Dictionary<string, string[]> { { "Identity", errors } } });
+            return BadRequest(new ApiErrorResponse { StatusCode = 400, Code = "REGISTRATION_FAILED", Message = "Đăng ký người dùng thất bại.", Errors = new Dictionary<string, string[]> { { "Identity", errors } } });
         }
 
-        return Ok(ApiResponse<object>.Ok(new { Message = "User registered successfully." }));
+        return Ok(ApiResponse<object>.Ok(new { Message = "Đăng ký người dùng thành công." }));
     }
 
     [HttpPost("login")]
@@ -41,7 +41,7 @@ public class AuthController : ControllerBase
 
         if (!success || authResponse == null)
         {
-            return Unauthorized(new ApiErrorResponse { StatusCode = 401, Code = "LOGIN_FAILED", Message = "Invalid email or password.", Errors = new Dictionary<string, string[]> { { "Auth", errors } } });
+            return Unauthorized(new ApiErrorResponse { StatusCode = 401, Code = "LOGIN_FAILED", Message = "Email hoặc mật khẩu không chính xác.", Errors = new Dictionary<string, string[]> { { "Auth", errors } } });
         }
 
         return Ok(ApiResponse<AuthResponse>.Ok(authResponse));
