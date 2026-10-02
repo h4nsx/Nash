@@ -1,13 +1,5 @@
-# ADR-009 — SignalR for Realtime
+# ADR-009: SignalR
 
-## Status
-Accepted
+**Decision:** SignalR only for realtime features.
 
-## Decision
-Use SignalR only for realtime features such as chat and notifications.
-
-## Rule
-Normal CRUD and workflow operations remain REST APIs.
-
-## Reason
-Realtime transport should not complicate standard business operations.
+**Reason:** Chat/notifications benefit from realtime; ordinary CRUD stays REST.

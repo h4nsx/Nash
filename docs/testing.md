@@ -1,83 +1,21 @@
-# NASH Testing Strategy
+# Testing
 
-## Test Pyramid
+## Unit
+Test match scoring, eligibility, explanations, skill verification and state transitions.
 
-```text
-             E2E
-            /   \
-      Integration
-        /       \
-      Unit Tests
-```
+## Matching cases
+Exact/partial skills, missing mandatory skill, verified/unverified, budget mismatch, availability conflict, ties, fewer than 3 candidates, score-version changes.
 
-## Unit Tests
+## Contract cases
+Invite, view, accept, decline, counter/versioning, expiry, ownership, concurrent acceptance, contract activation.
 
-Use xUnit for:
-- domain rules
-- state transitions
-- validators
-- application services/use cases
-- authorization policies where practical
+## Integration
+PostgreSQL mappings, transactions, authorization, Redis/Hangfire where used.
 
-Examples:
-- freelancer cannot propose to own project
-- invalid project transition rejected
-- duplicate proposal rejected
-- contract creation only after accepted proposal
+## Playwright E2E
+1. Profile → skill test → verified badge.
+2. Client creates project → publishes → sees Top 3 → invites.
+3. Freelancer receives invite → counters → client accepts → contract active.
+4. Milestone submit → accept → contract completion → review.
 
-## Integration Tests
-
-Test:
-- API endpoints
-- authentication
-- authorization
-- EF Core persistence
-- transaction behavior
-- database constraints
-
-Use an isolated test database strategy.
-
-## E2E
-
-Use Playwright for critical journeys:
-
-### Journey 1
-Register → Login → Freelancer profile
-
-### Journey 2
-Client creates project → publishes project
-
-### Journey 3
-Freelancer discovers project → submits proposal
-
-### Journey 4
-Client accepts proposal → contract created
-
-### Journey 5
-Contract → milestone → completion → review
-
-### Journey 6
-Admin → CMS content → public page
-
-## Test Naming
-
-Use behavior-oriented names.
-
-Example:
-
-```text
-AcceptProposal_ShouldCreateContractAndMoveProjectToInProgress
-```
-
-## Definition of Done
-
-A feature is not complete when only the happy path works.
-
-It must cover:
-- success
-- validation error
-- unauthorized access
-- not found
-- business conflict
-- loading/empty/error UI states
-- automated tests where applicable
+Every production bug should gain a regression test where practical.

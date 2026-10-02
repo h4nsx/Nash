@@ -1,10 +1,5 @@
-# ADR-008 — Redis as Optional Infrastructure
+# ADR-008: Redis
 
-## Status
-Accepted
+**Decision:** Redis is shared cache/transient infrastructure.
 
-## Decision
-Redis is available for caching and infrastructure needs, but is not required by the core domain.
-
-## Rule
-Do not make basic marketplace workflows depend on Redis unless there is a concrete requirement.
+**Reason:** Useful for read-heavy data and selected distributed concerns; PostgreSQL remains authoritative.

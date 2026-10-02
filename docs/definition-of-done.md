@@ -1,52 +1,21 @@
-# NASH Definition of Done
+# Definition of Done
 
-A feature is considered complete only when all applicable items are satisfied.
+Product: acceptance criteria and state transitions documented.
 
-## Product
-- [ ] Acceptance criteria implemented
-- [ ] Valid state transitions
-- [ ] Empty state
-- [ ] Error state
-- [ ] Loading state
+Backend: auth, validation, domain rules, errors, transaction/concurrency reviewed.
 
-## Backend
-- [ ] DTOs
-- [ ] Validation
-- [ ] Authorization
-- [ ] Business rules
-- [ ] Persistence
-- [ ] Transaction where required
-- [ ] Error contract
-- [ ] Logging
+Frontend: loading/empty/error/validation/auth states.
 
-## Frontend
-- [ ] API integration
-- [ ] Form validation
-- [ ] Permission-aware UI
-- [ ] Loading/error/empty states
-- [ ] Responsive behavior
-- [ ] Accessibility basics
-- [ ] SEO if public
+Database: mapping, migration, indexes/constraints, data integrity.
 
-## Database
-- [ ] Migration
-- [ ] Foreign keys
-- [ ] Unique constraints
-- [ ] Required indexes
-- [ ] No accidental destructive changes
+Testing: unit business rules, integration workflows, E2E critical journeys.
 
-## Testing
-- [ ] Unit tests
-- [ ] Integration tests where relevant
-- [ ] E2E test for critical workflow where relevant
+Security: auth, ownership, input validation, sensitive-data review.
 
-## Quality
-- [ ] Lint passes
-- [ ] Typecheck/build passes
-- [ ] Backend tests pass
-- [ ] Frontend tests pass where configured
+Quality: lint, format, build, tests, no unrelated refactor.
 
-## Documentation
-- [ ] API docs updated
-- [ ] Domain docs updated
-- [ ] Architecture/ADR updated if decision changed
+Docs: product/domain/API/database/ADR updates as needed.
+
+Matching: eligibility → scoring → version → reasons → deterministic ranking → snapshot.
+
+Contracts: immutable draft versions, expiry, explicit acceptance, counter creates version, concurrency protected.

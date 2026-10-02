@@ -1,10 +1,5 @@
-# ADR-006 — Clean Architecture
+# ADR-006: Clean Architecture
 
-## Status
-Accepted
+**Decision:** Use Clean Architecture inside the modular monolith.
 
-## Decision
-Separate Domain, Application, Infrastructure and API concerns.
-
-## Reason
-The project's primary engineering goal includes maintainability and explicit backend boundaries.
+**Reason:** Matching, verification, contracts and authorization contain substantial business rules.

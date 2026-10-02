@@ -1,97 +1,19 @@
-# NASH Database Specification
+# Database
 
-## Database
+PostgreSQL is the primary relational store; EF Core manages mappings and migrations.
 
-PostgreSQL is the primary relational database.
+## Core tables
+`users`, `freelancer_profiles`, `client_profiles`, `skills`, `skill_categories`, `skill_tests`, `skill_test_attempts`, `verified_skills`, `projects`, `project_skill_requirements`, `matches`, `invitations`, `contract_drafts`, `contracts`, `milestones`, `reviews`, `media`, `cms_pages`, `cms_posts`, `notifications`, `audit_logs`.
 
-ORM:
-**Entity Framework Core**
+## Important constraints/indexes
+- Unique skill slug.
+- Active verified-skill uniqueness as product rules require.
+- Match indexes by project/score/status and retain generation/score version.
+- Invitation lookup by freelancer/client/status.
+- Contract draft unique `(invitation_id, version)`.
+- Milestone ordering unique per contract.
+- Concurrency tokens for mutable workflow records.
 
-Migration strategy:
-- code-first migrations
-- migration files committed to source control
-- production migrations executed deliberately during deployment
+Never calculate historical match scores from current profile data. Persist score, score version, reasons and generation timestamp; retain additional snapshot data when required for reproducibility.
 
-## Core Tables
-
-```text
-users
-freelancer_profiles
-client_profiles
-projects
-proposals
-contracts
-milestones
-reviews
-categories
-skills
-freelancer_skills
-portfolio_items
-media_assets
-cms_contents
-seo_metadata
-reports
-refresh_tokens
-```
-
-## General Rules
-
-- use UUIDs or another consistent non-sequential public identifier strategy
-- every table should have `created_at` and `updated_at` where applicable
-- use UTC timestamps
-- use foreign keys
-- use unique constraints for business uniqueness
-- add indexes based on query patterns
-- avoid storing derived values unless justified
-- use transactions for multi-entity workflows
-- never expose database entities directly from API endpoints
-
-## Important Constraints
-
-### Users
-- email unique
-- normalized email for uniqueness checks
-
-### Projects
-- slug unique among public projects
-- client_id foreign key to users
-- category_id foreign key to categories
-
-### Proposals
-- project_id + freelancer_id unique for active/accepted proposal semantics
-- project_id indexed
-- freelancer_id indexed
-- status indexed if frequently filtered
-
-### Contracts
-- accepted proposal should map to one contract
-- project_id indexed
-- client_id indexed
-- freelancer_id indexed
-
-### Skills
-- skill name unique
-
-## Soft Delete
-
-Use soft deletion only where business recovery/audit value exists.
-
-Do not blindly add soft delete to every table.
-
-## Concurrency
-
-Use optimistic concurrency for entities where simultaneous edits matter.
-
-Important workflows such as proposal acceptance must execute inside a transaction and protect against duplicate acceptance.
-
-## Performance
-
-Start with:
-- proper indexes
-- pagination
-- projection queries
-- connection pooling
-- avoiding N+1 queries
-- query profiling
-
-Do not introduce sharding or database partitioning prematurely.
+Use migrations, review important generated SQL, preserve data and avoid destructive startup migrations. Soft delete only when justified.

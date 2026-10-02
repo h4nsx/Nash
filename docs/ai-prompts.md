@@ -1,35 +1,16 @@
-# NASH AI Prompt Pack
+# AI Prompts
 
-These prompts are intended to be used with an AI coding agent after the repository has been initialized.
+## Feature
+Read AGENTS.md, .cursorrules and relevant docs. Implement [FEATURE] with stated acceptance criteria. Preserve modular monolith/Clean Architecture, do not invent rules, add tests and update docs. First identify files and assumptions.
 
-## 1. Repository Initialization
+## Matching
+Read `matching-engine.md`. Implement the requested change without ML. Preserve eligibility, weighted deterministic scoring, explanations, score versions, deterministic tie-breaks and Top 3. Add unit tests.
 
-> Read `README.md` and all documents under `docs/`. Initialize the NASH repository according to the documented architecture. Do not introduce technologies not listed in the architecture. Create the smallest working foundation for Next.js, ASP.NET Core, PostgreSQL and Docker Compose. Stop after the foundation is buildable and explain the files created.
+## Contract
+Read `contract-workflow.md`. Preserve immutable versions, expiry, authorization, transactions and concurrency. Add integration tests for accept/counter/expiry/concurrent requests.
 
-## 2. Implement a Feature
+## Database
+Read `database.md` and `domain-model.md`. Create a safe EF migration, preserve data, add tests and update docs.
 
-> Read `docs/product-spec.md`, `docs/domain-model.md`, `docs/api.md`, `docs/backend.md`, `docs/frontend.md`, `docs/ai-coding.md`. Implement [FEATURE]. First identify affected modules and contracts. Then implement backend, database changes, frontend, validation, authorization and tests. Do not change unrelated code. Report changes, files, tests and assumptions.
-
-## 3. Review
-
-> Review the current implementation against all documents in `docs/`. Find violations of architecture, security, API consistency, domain rules and testing requirements. Do not refactor unrelated code. Return findings grouped by severity and propose minimal fixes.
-
-## 4. Security Review
-
-> Audit [FEATURE/AREA] against `docs/auth-security.md`. Check authentication, authorization, ownership, input validation, rate limiting, secrets, file handling, error leakage and logging. Identify concrete vulnerabilities and fixes.
-
-## 5. Database Change
-
-> I need to change the data model for [CHANGE]. Read `docs/database.md` and `docs/domain-model.md`. Propose the minimal schema change, migration impact, indexes, constraints and affected APIs. Do not implement until the migration plan is clear.
-
-## 6. Testing
-
-> Read `docs/testing.md`. Identify missing unit, integration and E2E coverage for [FEATURE]. Implement the highest-value tests without changing production behavior.
-
-## 7. Refactor
-
-> Refactor [AREA] to comply with `docs/backend.md` / `docs/frontend.md`. Preserve behavior and API compatibility. Do not introduce a new library or architectural pattern.
-
-## 8. Documentation Sync
-
-> Compare the implementation with `docs/`. Identify documentation that is now stale because of the latest code changes. Update only the affected documentation.
+## Review
+Review against product, architecture, domain, API, security and Definition of Done. Find business violations, architecture/security issues, missing tests and documentation drift. Do not rewrite unrelated code.

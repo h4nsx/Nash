@@ -1,10 +1,5 @@
-# ADR-010 — Docker + GitHub Actions
+# ADR-010: Docker + CI/CD
 
-## Status
-Accepted
+**Decision:** Docker for local infrastructure and GitHub Actions for CI/CD.
 
-## Decision
-Use Docker for reproducible infrastructure/local environments and GitHub Actions for CI/CD.
-
-## Rule
-The development environment should remain lightweight. Run only infrastructure services that are actually required.
+**Reason:** Reproducible development and automated quality gates.

@@ -1,152 +1,32 @@
-# NASH REST API Contract
+# REST API Contract
 
-Base URL:
+Base: `/api/v1`.
 
-```text
-/api/v1
-```
+## Auth
+`POST /auth/register`, `/login`, `/refresh`, `/logout`; `GET /auth/me`.
 
-## Conventions
+## Profiles/skills
+`GET/PATCH /freelancers/{id}`, `PATCH /freelancers/me`; `GET/PATCH /clients/...`; `GET /skills`; `PUT /freelancers/me/skills`.
 
-- JSON request/response
-- REST-oriented resource naming
-- plural resource paths
-- pagination for collections
-- filtering through query parameters
-- consistent error responses
-- authenticated endpoints require bearer/session authentication
-- OpenAPI is the authoritative machine-readable API contract
+## Skill verification
+`GET /skill-tests`; `GET /skill-tests/{id}`; `POST /skill-tests/{id}/attempts`; `GET /skill-test-attempts/{id}`; `POST /skill-test-attempts/{id}/submit`; `GET /freelancers/me/verified-skills`.
 
-## Resources
+## Projects
+`POST/GET /projects`; `GET/PATCH /projects/{id}`; `POST /projects/{id}/publish`; `POST /projects/{id}/close`.
 
-### Auth
+## Matching
+`POST /projects/{id}/match`; `GET /projects/{id}/matches`; `GET /projects/{id}/matches/{matchId}`; `POST .../dismiss`. Response includes score, scoreVersion, reasons, generatedAt, status.
 
-```text
-POST   /auth/register
-POST   /auth/login
-POST   /auth/refresh
-POST   /auth/logout
-GET    /auth/me
-```
+## Invitations
+`POST /projects/{id}/invitations`; `GET /clients/me/invitations`; `GET /freelancers/me/invitations`; `GET /invitations/{id}`; `POST /invitations/{id}/view|accept|decline|counter`.
 
-### Projects
+## Contracts
+`GET/POST /invitations/{id}/contract-draft`; `POST /contract-drafts/{id}/counter`; `GET /contract-drafts/{id}/versions`; `GET /contracts/{id}`; `POST /contracts/{id}/cancel`.
 
-```text
-GET    /projects
-POST   /projects
-GET    /projects/{id}
-PATCH  /projects/{id}
-DELETE /projects/{id}
-POST   /projects/{id}/publish
-POST   /projects/{id}/close
-```
+## Milestones/reviews
+Milestone CRUD + submit/accept/request-changes. `POST/GET /contracts/{id}/reviews`.
 
-### Proposals
+## Errors
+Use Problem Details-style JSON and HTTP 409 for state/concurrency conflicts.
 
-```text
-GET    /projects/{projectId}/proposals
-POST   /projects/{projectId}/proposals
-GET    /proposals/{id}
-POST   /proposals/{id}/withdraw
-POST   /proposals/{id}/accept
-POST   /proposals/{id}/reject
-```
-
-### Contracts
-
-```text
-GET    /contracts
-GET    /contracts/{id}
-POST   /contracts/{id}/complete
-POST   /contracts/{id}/cancel
-```
-
-### Milestones
-
-```text
-POST   /contracts/{contractId}/milestones
-PATCH  /milestones/{id}
-POST   /milestones/{id}/submit
-POST   /milestones/{id}/approve
-POST   /milestones/{id}/reject
-```
-
-### Freelancer
-
-```text
-GET    /freelancers
-GET    /freelancers/{username}
-PATCH  /freelancers/me
-GET    /freelancers/me/portfolio
-POST   /freelancers/me/portfolio
-```
-
-### CMS / Admin
-
-```text
-GET    /admin/users
-GET    /admin/projects
-GET    /admin/reports
-GET    /admin/reviews
-CRUD   /admin/categories
-CRUD   /admin/skills
-CRUD   /admin/content
-CRUD   /admin/media
-```
-
-## Pagination
-
-Use:
-
-```text
-?page=1&pageSize=20
-```
-
-Response:
-
-```json
-{
-  "items": [],
-  "page": 1,
-  "pageSize": 20,
-  "total": 0
-}
-```
-
-For high-volume endpoints, cursor pagination may be introduced later.
-
-## Validation
-
-Return validation errors using a predictable structure:
-
-```json
-{
-  "statusCode": 400,
-  "code": "VALIDATION_ERROR",
-  "message": "One or more fields are invalid.",
-  "errors": {
-    "title": ["Title is required."]
-  },
-  "requestId": "..."
-}
-```
-
-## HTTP Semantics
-
-- `200` successful read/update
-- `201` successful creation
-- `204` successful deletion/action with no body
-- `400` invalid request
-- `401` unauthenticated
-- `403` unauthorized
-- `404` resource not found
-- `409` business conflict
-- `422` semantically invalid operation when appropriate
-- `429` rate limited
-- `500` unexpected server error
-
-## Versioning
-
-Public API routes use `/api/v1`.
-
-Breaking API changes require a new version or a documented migration strategy.
+Validate request shape, authorization, ownership and domain state on the server. Consider idempotency keys for invitation creation, acceptance and submissions.

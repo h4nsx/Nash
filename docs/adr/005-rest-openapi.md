@@ -1,10 +1,5 @@
-# ADR-005 — REST + OpenAPI
+# ADR-005: REST + OpenAPI
 
-## Status
-Accepted
+**Decision:** REST with OpenAPI.
 
-## Decision
-Use RESTful HTTP APIs documented through OpenAPI/Swagger.
-
-## Reason
-NASH has clear resource-oriented workflows and does not currently require GraphQL's query flexibility.
+**Reason:** Explicit, testable frontend/backend contract.

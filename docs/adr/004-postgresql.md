@@ -1,17 +1,5 @@
-# ADR-004 — PostgreSQL
+# ADR-004: PostgreSQL
 
-## Status
-Accepted
+**Decision:** PostgreSQL is the primary relational database.
 
-## Context
-NASH has highly relational entities: users, projects, proposals, contracts, milestones, reviews, skills and categories.
-
-## Decision
-Use PostgreSQL with Entity Framework Core.
-
-## Consequences
-- relational integrity
-- transactions
-- indexing
-- mature SQL capabilities
-- straightforward scaling path
+**Reason:** Transactions, constraints and relational workflows fit NASH.

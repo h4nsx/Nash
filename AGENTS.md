@@ -1,45 +1,7 @@
 # NASH AI Agent Context
 
-You are working on NASH, a production-oriented freelance marketplace and CMS.
+Read README.md, docs/product-spec.md, docs/architecture.md, docs/domain-model.md and docs/ai-coding.md before coding.
 
-Before coding, read:
-1. README.md
-2. docs/ai-coding.md
-3. docs/product-spec.md
-4. docs/architecture.md
-5. docs/domain-model.md
-6. docs/api.md
-7. Relevant frontend/backend/security/testing documents
+For matching read docs/matching-engine.md; verification read docs/skill-verification.md; invitations/contracts read docs/contract-workflow.md.
 
-Core stack:
-- Next.js + TypeScript
-- ASP.NET Core Web API
-- Entity Framework Core
-- PostgreSQL
-- Redis (optional by feature)
-- SignalR (realtime only)
-- Cloudflare R2 (object storage)
-- Hangfire (background jobs)
-- Docker
-- GitHub Actions
-
-Architecture:
-- modular monolith
-- clean architecture
-- REST + OpenAPI
-
-Never:
-- invent business rules
-- put business logic in controllers
-- bypass authorization
-- expose secrets
-- introduce infrastructure without justification
-- rewrite unrelated code
-
-For every meaningful feature:
-- inspect existing code
-- preserve architecture
-- implement validation and authorization
-- add tests
-- update documentation when contracts or decisions change
-- report files changed and tests run
+Preserve modular monolith/Clean Architecture. Do not invent rules. Matching is deterministic/explainable in MVP. Protect authorization, state transitions and concurrency. Add tests and update docs.

@@ -1,96 +1,50 @@
-# NASH — Network · Ability · Skills · Human
+# NASH Technical Documentation
 
-NASH is a production-oriented freelance marketplace and content management platform connecting clients and freelancers across the project lifecycle.
+NASH is a freelance marketplace built around **Verified Skills, Explainable Smart Match, and Direct Handshake**.
 
-## Engineering Goal
+Core workflow: `Profile → Skill Verification → Job → Smart Match → Top 3 → Direct Invite → Contract Draft → Accept/Counter → Contract → Milestones → Review`.
 
-NASH is intentionally scoped as a **modular monolith** with enterprise-style engineering practices:
-
-- maintainable architecture
-- secure authentication and authorization
-- relational data modeling
-- CMS and SEO
-- automated testing
-- Docker-based development
-- CI/CD
-- deployment and observability
-- documentation suitable for AI-assisted / vibe coding
-
-The project should demonstrate engineering depth rather than attempt to reproduce the full feature set of a platform such as Upwork.
-
-## Core Workflow
-
-Client → Project → Proposal → Selection → Contract → Milestones → Completion → Review
+This repository is the source of truth for implementation and AI/vibe coding.
 
 ## Stack
-
-### Frontend
-- Next.js
-- TypeScript
-- Tailwind CSS
-- shadcn/ui
-- TanStack Query
-- React Hook Form
-- Zod
-
-### Backend
+- Next.js + TypeScript
+- Tailwind CSS + shadcn/ui
+- TanStack Query + React Hook Form + Zod
 - ASP.NET Core Web API (.NET)
-- Clean Architecture
-- Modular Monolith
-- Entity Framework Core
-- REST
-- OpenAPI / Swagger
-- ASP.NET Core Identity
-- JWT
-- RBAC + resource-based authorization
+- Clean Architecture + Modular Monolith
+- EF Core + PostgreSQL
+- ASP.NET Identity + JWT
+- RBAC + Resource-based Authorization
+- REST + OpenAPI/Swagger
+- Redis + SignalR + Hangfire
 
-### Data / Infrastructure
-- PostgreSQL
-- Redis
-- Cloudflare R2
-- Hangfire
-- Docker / Docker Compose
-- GitHub Actions
-- Cloudflare
+- xUnit + Integration Testing + Playwright
+- ESLint + Prettier + EditorConfig + .NET Analyzers
+- Docker + Docker Compose + GitHub Actions
+- Serilog + OpenTelemetry + Sentry
+- Vercel + .NET cloud hosting + Managed PostgreSQL + Cloudflare
 
-### Quality / Observability
-- xUnit
-- ASP.NET Core integration tests
-- Playwright
-- ESLint
-- Prettier
-- EditorConfig
-- .NET analyzers
-- Serilog
-- OpenTelemetry
-- Sentry
+## Docs
+- product-spec.md — product requirements
+- architecture.md — system architecture
+- domain-model.md — entities/state machines
+- database.md — PostgreSQL/EF Core
+- api.md — REST contract
+- matching-engine.md — Smart Match contract
+- skill-verification.md — tests/badges
+- contract-workflow.md — invitation/contract versioning
+- frontend.md / backend.md — implementation conventions
+- auth-security.md — security
+- cms-seo.md — CMS/SEO
+- testing.md — testing strategy
+- development.md / deployment.md / operations.md — engineering operations
+- ai-coding.md / ai-prompts.md — AI workflow
+- roadmap.md — implementation phases
+- definition-of-done.md — completion checklist
+- decisions.md + adr/ — architecture decisions
 
-## Documentation
+## Source of truth
+Priority: explicit task → product spec → domain contracts → ADRs → API/database contracts → code conventions. Never invent business rules.
 
-| Document | Purpose |
-|---|---|
-| `docs/product-spec.md` | Product scope and requirements |
-| `docs/architecture.md` | System and backend architecture |
-| `docs/domain-model.md` | Domain entities and business rules |
-| `docs/database.md` | PostgreSQL schema and data rules |
-| `docs/api.md` | REST API contract |
-| `docs/frontend.md` | Next.js architecture and conventions |
-| `docs/backend.md` | .NET architecture and coding conventions |
-| `docs/auth-security.md` | Authentication and security rules |
-| `docs/cms-seo.md` | CMS and SEO requirements |
-| `docs/testing.md` | Testing strategy |
-| `docs/development.md` | Local development workflow |
-| `docs/deployment.md` | Deployment and production workflow |
-| `docs/operations.md` | Logging, monitoring, backups and incidents |
-| `docs/ai-coding.md` | Rules for AI/vibe coding |
-| `docs/roadmap.md` | Implementation phases |
-| `docs/decisions.md` | Architectural decision index |
-| `docs/adr/*` | Individual architecture decisions |
-
-## Source of Truth
-
-When implementation and documentation disagree, update the documentation first if the decision is intentional. AI-generated code must follow these documents rather than inventing a new architecture.
-
-## Scope Rule
-
-Do not introduce microservices, Kubernetes, Kafka, Elasticsearch, GraphQL, or other infrastructure unless a documented requirement and ADR justify it.
+## Scope
+Start as a modular monolith. Do not add microservices, Kafka, Kubernetes, Elasticsearch, GraphQL or service mesh without a concrete requirement and ADR.

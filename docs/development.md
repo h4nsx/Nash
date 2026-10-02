@@ -1,110 +1,11 @@
-# NASH Local Development
+# Development
 
-## Prerequisites
+Prerequisites: Node.js, package manager, .NET SDK, Docker, Git.
 
-- Node.js LTS
-- .NET SDK LTS
-- Docker
-- Docker Compose
-- Git
-- PostgreSQL client/tooling
+Keep local infra light: PostgreSQL and Redis via Docker Compose. Use local filesystem for development storage; R2 in production. Do not run unnecessary services.
 
-## Repository
+Typical env categories: database, JWT, Redis, R2, Sentry. Never commit real values.
 
-```text
-nash/
-├── apps/
-│   └── web/
-├── src/
-│   ├── NASH.Api/
-│   ├── NASH.Application/
-│   ├── NASH.Domain/
-│   └── NASH.Infrastructure/
-├── tests/
-├── docs/
-├── docker-compose.yml
-└── README.md
-```
+Flow: read docs → domain contract → API contract → backend → frontend → tests → docs.
 
-## Local Services
-
-Docker Compose should initially run only infrastructure:
-
-```text
-PostgreSQL
-Redis
-```
-
-Do not add heavy infrastructure without a requirement.
-
-## Environment Variables
-
-Frontend:
-
-```env
-NEXT_PUBLIC_API_URL=
-```
-
-Backend:
-
-```env
-ConnectionStrings__Default=
-Jwt__Issuer=
-Jwt__Audience=
-Jwt__Secret=
-Redis__Connection=
-R2__Endpoint=
-R2__AccessKey=
-R2__SecretKey=
-R2__Bucket=
-Sentry__Dsn=
-```
-
-Use `.env.example` with placeholders.
-
-## Startup
-
-Suggested:
-
-```bash
-docker compose up -d
-dotnet restore
-dotnet ef database update
-dotnet run --project src/NASH.Api
-npm install
-npm run dev
-```
-
-## Git Workflow
-
-Suggested branches:
-
-```text
-main
-develop
-feature/*
-fix/*
-chore/*
-```
-
-Pull requests should include:
-- summary
-- implementation notes
-- tests
-- screenshots for UI changes
-- migration notes when database changes exist
-
-## Commit Style
-
-Use conventional commits:
-
-```text
-feat:
-fix:
-refactor:
-test:
-docs:
-chore:
-build:
-ci:
-```
+Use small conventional commits (`feat`, `fix`, `test`, `docs`, `refactor`, `chore`). For demos, use Cloudflare Tunnel; never expose PostgreSQL/Redis directly.

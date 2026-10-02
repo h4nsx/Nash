@@ -1,111 +1,11 @@
-# NASH Authentication & Security
+# Authentication and Security
 
-## Authentication
+ASP.NET Identity manages users/passwords/roles; JWT may authenticate API requests. Use RBAC plus resource-based authorization.
 
-Use ASP.NET Core Identity for account management.
+Server must enforce ownership, state transitions, invitation recipient checks, expiry, contract version and skill-attempt ownership.
 
-Use short-lived access authentication plus refresh-token/session renewal.
+Use HTTPS, strict CORS, rate limiting, validation, secure headers and safe file-upload policies. Never log passwords, tokens or unnecessary contract-sensitive data.
 
-Security requirements:
-- strong password hashing
-- secure token handling
-- token rotation/revocation strategy
-- logout invalidation
-- account status checks
+Skill tests require server-side scoring and locked submission. Contract acceptance requires current-version/state validation and transaction/concurrency protection.
 
-## Authorization
-
-Use two levels:
-
-### Role-Based
-Roles:
-- CLIENT
-- FREELANCER
-- ADMIN
-
-### Resource-Based
-Examples:
-- client can edit only own project
-- freelancer can edit only own profile
-- client can review proposals only for own projects
-- admin can manage administrative resources
-
-Never trust the role or ownership supplied by the client.
-
-## Input Validation
-
-Validate:
-- body
-- route parameters
-- query parameters
-- file metadata
-- content length
-
-## Rate Limiting
-
-Rate-limit sensitive endpoints:
-- login
-- registration
-- password-related operations
-- proposal submission
-- report submission
-- upload initialization
-
-## CORS
-
-Allow only configured frontend origins.
-
-Never use unrestricted production CORS unless explicitly justified.
-
-## Cookies / Tokens
-
-If using cookies:
-- HttpOnly
-- Secure
-- SameSite configured appropriately
-
-If using Authorization headers:
-- never store long-lived credentials in unsafe browser storage
-
-Follow one documented authentication strategy consistently.
-
-## File Upload Security
-
-Validate:
-- size
-- extension
-- MIME type
-- object key/path
-- ownership
-
-Do not trust the original filename.
-
-Use random object keys.
-
-For public media, store only safe metadata and generated URLs.
-
-## Secrets
-
-Never commit:
-- database passwords
-- JWT secrets
-- API keys
-- R2 credentials
-- Sentry credentials
-
-Use environment variables or secret managers.
-
-## Security Headers
-
-Configure appropriate:
-- Content-Security-Policy
-- X-Content-Type-Options
-- Referrer-Policy
-- frame protections
-- HSTS in HTTPS production environments
-
-## Production Rule
-
-A UI restriction is not authorization.
-
-Every sensitive operation must be authorized on the server.
+Secrets live in environment/secret management, never source control. Audit role changes, verification, invitations, contracts and admin actions.
