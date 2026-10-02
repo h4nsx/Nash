@@ -22,6 +22,79 @@ namespace Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Domain.Entities.Project", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal?>("BudgetMax")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("BudgetMin")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("ClientId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClientId");
+
+                    b.ToTable("Projects", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.ProjectSkillRequirement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsMandatory")
+                        .HasColumnType("boolean");
+
+                    b.Property<int?>("MinimumExperienceYears")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("SkillId");
+
+                    b.ToTable("ProjectSkillRequirements", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Entities.Skill", b =>
                 {
                     b.Property<Guid>("Id")
@@ -51,7 +124,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            CreatedAt = new DateTime(2026, 10, 2, 16, 25, 17, 810, DateTimeKind.Utc).AddTicks(8579),
+                            CreatedAt = new DateTime(2026, 10, 2, 16, 45, 47, 446, DateTimeKind.Utc).AddTicks(3429),
                             Description = "Kỹ năng lập trình front-end với thư viện ReactJS.",
                             IsActive = true,
                             Name = "Phát triển ReactJS"
@@ -59,7 +132,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("22222222-2222-2222-2222-222222222222"),
-                            CreatedAt = new DateTime(2026, 10, 2, 16, 25, 17, 810, DateTimeKind.Utc).AddTicks(8591),
+                            CreatedAt = new DateTime(2026, 10, 2, 16, 45, 47, 446, DateTimeKind.Utc).AddTicks(3440),
                             Description = "Kỹ năng xây dựng ứng dụng với ngôn ngữ C# và nền tảng .NET.",
                             IsActive = true,
                             Name = "Lập trình C# .NET"
@@ -109,7 +182,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("33333333-3333-3333-3333-333333333333"),
-                            CreatedAt = new DateTime(2026, 10, 2, 16, 25, 17, 810, DateTimeKind.Utc).AddTicks(8797),
+                            CreatedAt = new DateTime(2026, 10, 2, 16, 45, 47, 446, DateTimeKind.Utc).AddTicks(3661),
                             PassingScore = 70,
                             SkillId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Status = 1,
@@ -121,7 +194,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("44444444-4444-4444-4444-444444444444"),
-                            CreatedAt = new DateTime(2026, 10, 2, 16, 25, 17, 810, DateTimeKind.Utc).AddTicks(8813),
+                            CreatedAt = new DateTime(2026, 10, 2, 16, 45, 47, 446, DateTimeKind.Utc).AddTicks(3674),
                             PassingScore = 80,
                             SkillId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Status = 1,
@@ -437,6 +510,36 @@ namespace Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.Project", b =>
+                {
+                    b.HasOne("Domain.Entities.User", "Client")
+                        .WithMany("Projects")
+                        .HasForeignKey("ClientId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Client");
+                });
+
+            modelBuilder.Entity("Domain.Entities.ProjectSkillRequirement", b =>
+                {
+                    b.HasOne("Domain.Entities.Project", "Project")
+                        .WithMany("SkillRequirements")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.Skill", "Skill")
+                        .WithMany()
+                        .HasForeignKey("SkillId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Project");
+
+                    b.Navigation("Skill");
+                });
+
             modelBuilder.Entity("Domain.Entities.SkillTest", b =>
                 {
                     b.HasOne("Domain.Entities.Skill", "Skill")
@@ -545,6 +648,11 @@ namespace Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Domain.Entities.Project", b =>
+                {
+                    b.Navigation("SkillRequirements");
+                });
+
             modelBuilder.Entity("Domain.Entities.Skill", b =>
                 {
                     b.Navigation("Tests");
@@ -558,6 +666,8 @@ namespace Infrastructure.Migrations
             modelBuilder.Entity("Domain.Entities.User", b =>
                 {
                     b.Navigation("Attempts");
+
+                    b.Navigation("Projects");
 
                     b.Navigation("VerifiedSkills");
                 });
