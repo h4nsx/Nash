@@ -9,6 +9,11 @@ namespace Infrastructure.Persistence;
 public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
 {
     public DbSet<User> DomainUsers { get; set; } = null!;
+    public DbSet<Skill> Skills { get; set; } = null!;
+    public DbSet<SkillTest> SkillTests { get; set; } = null!;
+    public DbSet<SkillTestAttempt> SkillTestAttempts { get; set; } = null!;
+    public DbSet<VerifiedSkill> VerifiedSkills { get; set; } = null!;
+
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
     }
@@ -26,6 +31,96 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
             entity.Property(e => e.IdentityId).IsRequired();
             entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
         });
+
+        modelBuilder.Entity<Skill>(entity =>
+        {
+            entity.ToTable("Skills");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<SkillTest>(entity =>
+        {
+            entity.ToTable("SkillTests");
+            entity.HasKey(e => e.Id);
+            entity.HasOne(e => e.Skill)
+                  .WithMany(s => s.Tests)
+                  .HasForeignKey(e => e.SkillId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SkillTestAttempt>(entity =>
+        {
+            entity.ToTable("SkillTestAttempts");
+            entity.HasKey(e => e.Id);
+            
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.Attempts)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.SkillTest)
+                  .WithMany(st => st.Attempts)
+                  .HasForeignKey(e => e.SkillTestId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<VerifiedSkill>(entity =>
+        {
+            entity.ToTable("VerifiedSkills");
+            entity.HasKey(e => e.Id);
+            
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.VerifiedSkills)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+                  
+            entity.HasOne(e => e.Skill)
+                  .WithMany()
+                  .HasForeignKey(e => e.SkillId)
+                  .OnDelete(DeleteBehavior.Cascade);
+                  
+            entity.HasOne(e => e.Attempt)
+                  .WithMany()
+                  .HasForeignKey(e => e.SkillTestAttemptId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Seed Vietnamese Data
+        var reactSkillId = Guid.Parse("11111111-1111-1111-1111-111111111111");
+        var dotnetSkillId = Guid.Parse("22222222-2222-2222-2222-222222222222");
+
+        modelBuilder.Entity<Skill>().HasData(
+            new Skill { Id = reactSkillId, Name = "Phát triển ReactJS", Description = "Kỹ năng lập trình front-end với thư viện ReactJS.", IsActive = true, CreatedAt = DateTime.UtcNow },
+            new Skill { Id = dotnetSkillId, Name = "Lập trình C# .NET", Description = "Kỹ năng xây dựng ứng dụng với ngôn ngữ C# và nền tảng .NET.", IsActive = true, CreatedAt = DateTime.UtcNow }
+        );
+
+        modelBuilder.Entity<SkillTest>().HasData(
+            new SkillTest 
+            { 
+                Id = Guid.Parse("33333333-3333-3333-3333-333333333333"), 
+                SkillId = reactSkillId, 
+                Title = "Bài kiểm tra ReactJS cơ bản", 
+                Version = "1.0", 
+                PassingScore = 70, 
+                TimeLimitMinutes = 30, 
+                TasksJson = "[{\"question\":\"Hooks trong React là gì?\",\"options\":[\"Một tính năng mới trong React 16.8\",\"Một loại component\",\"Một phương thức của class\"],\"answer\":0}]", 
+                Status = Domain.Enums.TestStatus.Active, 
+                CreatedAt = DateTime.UtcNow 
+            },
+            new SkillTest 
+            { 
+                Id = Guid.Parse("44444444-4444-4444-4444-444444444444"), 
+                SkillId = dotnetSkillId, 
+                Title = "Bài kiểm tra C# .NET", 
+                Version = "1.0", 
+                PassingScore = 80, 
+                TimeLimitMinutes = 45, 
+                TasksJson = "[{\"question\":\"Interface trong C# khác abstract class như thế nào?\",\"options\":[\"Interface không thể có field\",\"Interface không thể khai báo method\",\"Cả hai đều giống nhau\"],\"answer\":0}]", 
+                Status = Domain.Enums.TestStatus.Active, 
+                CreatedAt = DateTime.UtcNow 
+            }
+        );
     }
 
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

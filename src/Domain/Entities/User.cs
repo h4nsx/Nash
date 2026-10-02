@@ -10,4 +10,8 @@ public class User : Entity
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public Role Role { get; set; }
+    
+    // Navigation properties
+    public ICollection<SkillTestAttempt> Attempts { get; set; } = new List<SkillTestAttempt>();
+    public ICollection<VerifiedSkill> VerifiedSkills { get; set; } = new List<VerifiedSkill>();
 }

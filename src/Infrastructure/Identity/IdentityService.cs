@@ -76,7 +76,7 @@ public class IdentityService : IIdentityService
             var domainUser = _context.DomainUsers.FirstOrDefault(u => u.IdentityId == applicationUser.Id);
             if (domainUser == null)
             {
-                return (false, null, new[] { "User domain record not found." });
+                return (false, null, new[] { "Không tìm thấy hồ sơ người dùng." });
             }
 
             var authResponse = new AuthResponse
@@ -91,6 +91,6 @@ public class IdentityService : IIdentityService
             return (true, authResponse, Array.Empty<string>());
         }
 
-        return (false, null, new[] { "Invalid email or password." });
+        return (false, null, new[] { "Email hoặc mật khẩu không chính xác." });
     }
 }
