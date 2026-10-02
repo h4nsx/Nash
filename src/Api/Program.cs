@@ -2,6 +2,9 @@ using Api.Middleware;
 using Infrastructure;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +13,28 @@ builder.Services.AddControllers();
 
 // Clean Architecture Infrastructure Layer
 builder.Services.AddInfrastructureServices(builder.Configuration);
+
+// Authentication & JWT
+var jwtSecret = builder.Configuration["Jwt:Secret"] ?? throw new InvalidOperationException("Jwt:Secret missing");
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "nash-api",
+        ValidAudience = builder.Configuration["Jwt:Audience"] ?? "nash-web",
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
+    };
+});
+builder.Services.AddAuthorization();
 
 // CORS
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? ["http://localhost:3000"];
@@ -45,7 +70,7 @@ var app = builder.Build();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
 // OpenAPI
-app.UseSwagger();
+app.UseSwagger(c => c.SerializeAsV2 = true);
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "NASH API v1");
@@ -53,6 +78,9 @@ app.UseSwaggerUI(c =>
 });
 
 app.UseCors("DefaultCorsPolicy");
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 // Health Check Endpoints
 app.MapHealthChecks("/health", new HealthCheckOptions

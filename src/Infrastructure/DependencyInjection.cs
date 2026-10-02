@@ -1,6 +1,8 @@
 using Application.Common.Interfaces;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
+using Infrastructure.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -18,6 +20,17 @@ public static class DependencyInjection
                 options.UseNpgsql(connectionString, b => b.MigrationsAssembly(typeof(AppDbContext).Assembly.FullName)));
 
             services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
+            
+            services.AddIdentityCore<ApplicationUser>(options => 
+            {
+                options.User.RequireUniqueEmail = true;
+                options.Password.RequireNonAlphanumeric = false;
+            })
+            .AddRoles<IdentityRole>()
+            .AddEntityFrameworkStores<AppDbContext>();
+
+            services.AddScoped<IJwtService, JwtService>();
+            services.AddScoped<IIdentityService, IdentityService>();
         }
 
         return services;
