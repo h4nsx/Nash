@@ -8,19 +8,19 @@ public class SkillTest
     
     public Guid SkillId { get; set; }
     
-    // Tên bài kiểm tra / Phiên bản
+    // Test Title / Version Name
     public string Title { get; set; } = string.Empty;
     
-    // Phiên bản bài kiểm tra
+    // Test Version
     public string Version { get; set; } = string.Empty;
     
-    // Điểm tối thiểu để vượt qua bài kiểm tra
+    // Minimum passing score
     public int PassingScore { get; set; }
     
-    // Thời gian giới hạn (tính bằng phút)
+    // Time limit in minutes
     public int TimeLimitMinutes { get; set; }
     
-    // Danh sách câu hỏi hoặc bài tập dạng JSON
+    // List of questions/tasks in JSON format
     public string TasksJson { get; set; } = string.Empty;
     
     public TestStatus Status { get; set; } = TestStatus.Draft;

@@ -4,13 +4,13 @@ public class Skill
 {
     public Guid Id { get; set; } = Guid.NewGuid();
     
-    // Tên kỹ năng (VD: C#, React)
+    // Skill name (e.g. C#, React)
     public string Name { get; set; } = string.Empty;
     
-    // Mô tả ngắn
+    // Short description
     public string Description { get; set; } = string.Empty;
     
-    // Kỹ năng có đang hiển thị trên nền tảng hay không
+    // Whether the skill is visible on the platform
     public bool IsActive { get; set; } = true;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

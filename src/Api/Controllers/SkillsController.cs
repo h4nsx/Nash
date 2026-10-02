@@ -24,6 +24,71 @@ public class SkillsController : ControllerBase
         return Ok(ApiResponse<List<SkillDto>>.Ok(skills));
     }
 
+    [Authorize(Roles = "Admin")]
+    [HttpGet("all")]
+    public async Task<ActionResult<ApiResponse<List<SkillDto>>>> GetAllSkills()
+    {
+        var skills = await _skillService.GetAllSkillsAsync();
+        return Ok(ApiResponse<List<SkillDto>>.Ok(skills));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPost]
+    public async Task<ActionResult<ApiResponse<object>>> CreateSkill([FromBody] CreateSkillDto request)
+    {
+        var (success, skillId, errors) = await _skillService.CreateSkillAsync(request);
+
+        if (!success)
+        {
+            return BadRequest(new ApiErrorResponse 
+            { 
+                StatusCode = 400, 
+                Code = "CREATE_SKILL_FAILED", 
+                Message = errors.FirstOrDefault() ?? "Không thể tạo kỹ năng." 
+            });
+        }
+
+        return Ok(ApiResponse<object>.Ok(new { Id = skillId, Message = "Tạo kỹ năng thành công." }));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("{skillId}")]
+    public async Task<ActionResult<ApiResponse<object>>> UpdateSkill(Guid skillId, [FromBody] UpdateSkillDto request)
+    {
+        var (success, errors) = await _skillService.UpdateSkillAsync(skillId, request);
+
+        if (!success)
+        {
+            return BadRequest(new ApiErrorResponse 
+            { 
+                StatusCode = 400, 
+                Code = "UPDATE_SKILL_FAILED", 
+                Message = errors.FirstOrDefault() ?? "Không thể cập nhật kỹ năng." 
+            });
+        }
+
+        return Ok(ApiResponse<object>.Ok(new { Message = "Cập nhật kỹ năng thành công." }));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpDelete("{skillId}")]
+    public async Task<ActionResult<ApiResponse<object>>> DeleteSkill(Guid skillId)
+    {
+        var (success, errors) = await _skillService.DeleteSkillAsync(skillId);
+
+        if (!success)
+        {
+            return BadRequest(new ApiErrorResponse 
+            { 
+                StatusCode = 400, 
+                Code = "DELETE_SKILL_FAILED", 
+                Message = errors.FirstOrDefault() ?? "Không thể xóa kỹ năng." 
+            });
+        }
+
+        return Ok(ApiResponse<object>.Ok(new { Message = "Xóa kỹ năng thành công." }));
+    }
+
     [Authorize]
     [HttpPost("{skillId}/test/start")]
     public async Task<ActionResult<ApiResponse<SkillTestAttemptDto>>> StartTest(Guid skillId)

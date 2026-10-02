@@ -15,6 +15,18 @@ public interface ISkillService
 
     // Get verified skills for a user
     Task<List<VerifiedSkillDto>> GetVerifiedSkillsAsync(string userId);
+
+    // Admin: Get all skills (including inactive)
+    Task<List<SkillDto>> GetAllSkillsAsync();
+
+    // Admin: Create skill
+    Task<(bool Success, Guid SkillId, string[] Errors)> CreateSkillAsync(CreateSkillDto request);
+
+    // Admin: Update skill
+    Task<(bool Success, string[] Errors)> UpdateSkillAsync(Guid skillId, UpdateSkillDto request);
+
+    // Admin: Delete skill
+    Task<(bool Success, string[] Errors)> DeleteSkillAsync(Guid skillId);
 }
 
 public class SkillDto
@@ -22,6 +34,21 @@ public class SkillDto
     public Guid Id { get; set; }
     public string Name { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
+    public bool IsActive { get; set; }
+}
+
+public class CreateSkillDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
+}
+
+public class UpdateSkillDto
+{
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public bool IsActive { get; set; } = true;
 }
 
 public class SkillTestAttemptDto

@@ -24,9 +24,80 @@ public class SkillService : ISkillService
             {
                 Id = s.Id,
                 Name = s.Name,
-                Description = s.Description
+                Description = s.Description,
+                IsActive = s.IsActive
             })
             .ToListAsync();
+    }
+
+    public async Task<List<SkillDto>> GetAllSkillsAsync()
+    {
+        return await _context.Skills
+            .Select(s => new SkillDto
+            {
+                Id = s.Id,
+                Name = s.Name,
+                Description = s.Description,
+                IsActive = s.IsActive
+            })
+            .ToListAsync();
+    }
+
+    public async Task<(bool Success, Guid SkillId, string[] Errors)> CreateSkillAsync(CreateSkillDto request)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return (false, Guid.Empty, new[] { "Tên kỹ năng không được để trống." });
+        }
+
+        var skill = new Skill
+        {
+            Name = request.Name,
+            Description = request.Description,
+            IsActive = request.IsActive
+        };
+
+        _context.Skills.Add(skill);
+        await _context.SaveChangesAsync();
+
+        return (true, skill.Id, Array.Empty<string>());
+    }
+
+    public async Task<(bool Success, string[] Errors)> UpdateSkillAsync(Guid skillId, UpdateSkillDto request)
+    {
+        var skill = await _context.Skills.FindAsync(skillId);
+        if (skill == null)
+        {
+            return (false, new[] { "Không tìm thấy kỹ năng." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return (false, new[] { "Tên kỹ năng không được để trống." });
+        }
+
+        skill.Name = request.Name;
+        skill.Description = request.Description;
+        skill.IsActive = request.IsActive;
+
+        await _context.SaveChangesAsync();
+        return (true, Array.Empty<string>());
+    }
+
+    public async Task<(bool Success, string[] Errors)> DeleteSkillAsync(Guid skillId)
+    {
+        var skill = await _context.Skills.FindAsync(skillId);
+        if (skill == null)
+        {
+            return (false, new[] { "Không tìm thấy kỹ năng." });
+        }
+
+        // Check if there are active tests or verified skills before deleting?
+        // In MVP, we just rely on EF Core Cascade Delete or we can manually check. Let's just delete for now.
+        _context.Skills.Remove(skill);
+        await _context.SaveChangesAsync();
+
+        return (true, Array.Empty<string>());
     }
 
     public async Task<(bool Success, SkillTestAttemptDto? Attempt, string[] Errors)> StartTestAttemptAsync(string userId, Guid skillId)

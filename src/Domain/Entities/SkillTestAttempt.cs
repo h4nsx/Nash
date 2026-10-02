@@ -12,7 +12,7 @@ public class SkillTestAttempt
     
     public AttemptStatus Status { get; set; } = AttemptStatus.NotStarted;
     
-    // Câu trả lời của người dùng dạng JSON
+    // User answers in JSON format
     public string UserAnswersJson { get; set; } = string.Empty;
     
     public int Score { get; set; }
