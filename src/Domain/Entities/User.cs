@@ -14,4 +14,5 @@ public class User : Entity
     // Navigation properties
     public ICollection<SkillTestAttempt> Attempts { get; set; } = new List<SkillTestAttempt>();
     public ICollection<VerifiedSkill> VerifiedSkills { get; set; } = new List<VerifiedSkill>();
+    public ICollection<Project> Projects { get; set; } = new List<Project>();
 }

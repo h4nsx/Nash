@@ -1,0 +1,64 @@
+using Application.Common.Interfaces;
+using Application.Common.Models;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Api.Controllers;
+
+[ApiController]
+[Route("api/v1/[controller]")]
+public class UsersController : ControllerBase
+{
+    private readonly IUserService _userService;
+
+    public UsersController(IUserService userService)
+    {
+        _userService = userService;
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<List<UserDto>>>> GetAllUsers()
+    {
+        var users = await _userService.GetAllUsersAsync();
+        return Ok(ApiResponse<List<UserDto>>.Ok(users));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpPut("{id}")]
+    public async Task<ActionResult<ApiResponse<object>>> UpdateUser(Guid id, [FromBody] UpdateUserDto request)
+    {
+        var (success, errors) = await _userService.UpdateUserAsync(id, request);
+
+        if (!success)
+        {
+            return BadRequest(new ApiErrorResponse 
+            { 
+                StatusCode = 400, 
+                Code = "UPDATE_USER_FAILED", 
+                Message = errors.FirstOrDefault() ?? "Không thể cập nhật người dùng." 
+            });
+        }
+
+        return Ok(ApiResponse<object>.Ok(new { Message = "Cập nhật người dùng thành công." }));
+    }
+
+    [Authorize(Roles = "Admin")]
+    [HttpDelete("{id}")]
+    public async Task<ActionResult<ApiResponse<object>>> DeleteUser(Guid id)
+    {
+        var (success, errors) = await _userService.DeleteUserAsync(id);
+
+        if (!success)
+        {
+            return BadRequest(new ApiErrorResponse 
+            { 
+                StatusCode = 400, 
+                Code = "DELETE_USER_FAILED", 
+                Message = errors.FirstOrDefault() ?? "Không thể xóa người dùng." 
+            });
+        }
+
+        return Ok(ApiResponse<object>.Ok(new { Message = "Xóa người dùng thành công." }));
+    }
+}

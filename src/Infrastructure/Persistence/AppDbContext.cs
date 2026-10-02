@@ -13,6 +13,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
     public DbSet<SkillTest> SkillTests { get; set; } = null!;
     public DbSet<SkillTestAttempt> SkillTestAttempts { get; set; } = null!;
     public DbSet<VerifiedSkill> VerifiedSkills { get; set; } = null!;
+    public DbSet<Project> Projects { get; set; } = null!;
+    public DbSet<ProjectSkillRequirement> ProjectSkillRequirements { get; set; } = null!;
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -83,6 +85,34 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
             entity.HasOne(e => e.Attempt)
                   .WithMany()
                   .HasForeignKey(e => e.SkillTestAttemptId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Project>(entity =>
+        {
+            entity.ToTable("Projects");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            
+            entity.HasOne(e => e.Client)
+                  .WithMany(u => u.Projects)
+                  .HasForeignKey(e => e.ClientId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ProjectSkillRequirement>(entity =>
+        {
+            entity.ToTable("ProjectSkillRequirements");
+            entity.HasKey(e => e.Id);
+            
+            entity.HasOne(e => e.Project)
+                  .WithMany(p => p.SkillRequirements)
+                  .HasForeignKey(e => e.ProjectId)
+                  .OnDelete(DeleteBehavior.Cascade);
+                  
+            entity.HasOne(e => e.Skill)
+                  .WithMany()
+                  .HasForeignKey(e => e.SkillId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 

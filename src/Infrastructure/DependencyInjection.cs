@@ -33,6 +33,8 @@ public static class DependencyInjection
             services.AddScoped<IJwtService, JwtService>();
             services.AddScoped<IIdentityService, IdentityService>();
             services.AddScoped<ISkillService, SkillService>();
+            services.AddScoped<IProjectService, ProjectService>();
+            services.AddScoped<IUserService, UserService>();
         }
 
         return services;
