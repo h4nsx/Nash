@@ -15,4 +15,7 @@ public class User : Entity
     public ICollection<SkillTestAttempt> Attempts { get; set; } = new List<SkillTestAttempt>();
     public ICollection<VerifiedSkill> VerifiedSkills { get; set; } = new List<VerifiedSkill>();
     public ICollection<Project> Projects { get; set; } = new List<Project>();
+    
+    public FreelancerProfile? FreelancerProfile { get; set; }
+    public ICollection<Match> Matches { get; set; } = new List<Match>();
 }

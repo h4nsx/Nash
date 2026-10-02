@@ -15,6 +15,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
     public DbSet<VerifiedSkill> VerifiedSkills { get; set; } = null!;
     public DbSet<Project> Projects { get; set; } = null!;
     public DbSet<ProjectSkillRequirement> ProjectSkillRequirements { get; set; } = null!;
+    public DbSet<FreelancerProfile> FreelancerProfiles { get; set; } = null!;
+    public DbSet<Match> Matches { get; set; } = null!;
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -113,6 +115,33 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
             entity.HasOne(e => e.Skill)
                   .WithMany()
                   .HasForeignKey(e => e.SkillId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<FreelancerProfile>(entity =>
+        {
+            entity.ToTable("FreelancerProfiles");
+            entity.HasKey(e => e.Id);
+            
+            entity.HasOne(e => e.User)
+                  .WithOne(u => u.FreelancerProfile)
+                  .HasForeignKey<FreelancerProfile>(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Match>(entity =>
+        {
+            entity.ToTable("Matches");
+            entity.HasKey(e => e.Id);
+            
+            entity.HasOne(e => e.Project)
+                  .WithMany()
+                  .HasForeignKey(e => e.ProjectId)
+                  .OnDelete(DeleteBehavior.Cascade);
+                  
+            entity.HasOne(e => e.Freelancer)
+                  .WithMany(u => u.Matches)
+                  .HasForeignKey(e => e.FreelancerId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 
