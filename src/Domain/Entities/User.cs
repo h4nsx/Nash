@@ -24,4 +24,9 @@ public class User : Entity
     public ICollection<Invitation> InvitationsSent { get; set; } = new List<Invitation>();
     public ICollection<ContractDraft> ContractDraftsCreated { get; set; } = new List<ContractDraft>();
     public ICollection<Contract> ContractsAsFreelancer { get; set; } = new List<Contract>();
+    
+    // Phase 6: Work
+    public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
+    public ICollection<Review> ReviewsGiven { get; set; } = new List<Review>();
+    public ICollection<Review> ReviewsReceived { get; set; } = new List<Review>();
 }

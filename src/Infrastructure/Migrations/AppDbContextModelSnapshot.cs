@@ -252,6 +252,87 @@ namespace Infrastructure.Migrations
                     b.ToTable("Matches", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.Milestone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("numeric");
+
+                    b.Property<Guid>("ContractId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("DueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FeedbackNotes")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SubmissionNotes")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContractId");
+
+                    b.ToTable("Milestones", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.Notification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsRead")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("Notifications", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Entities.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -325,6 +406,42 @@ namespace Infrastructure.Migrations
                     b.ToTable("ProjectSkillRequirements", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.Review", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Comment")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ContractId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Rating")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("RevieweeId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ReviewerId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContractId");
+
+                    b.HasIndex("RevieweeId");
+
+                    b.HasIndex("ReviewerId");
+
+                    b.ToTable("Reviews", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Entities.Skill", b =>
                 {
                     b.Property<Guid>("Id")
@@ -354,7 +471,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            CreatedAt = new DateTime(2026, 10, 4, 8, 38, 1, 758, DateTimeKind.Utc).AddTicks(4221),
+                            CreatedAt = new DateTime(2026, 10, 4, 9, 5, 50, 320, DateTimeKind.Utc).AddTicks(9588),
                             Description = "Kỹ năng lập trình front-end với thư viện ReactJS.",
                             IsActive = true,
                             Name = "Phát triển ReactJS"
@@ -362,7 +479,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("22222222-2222-2222-2222-222222222222"),
-                            CreatedAt = new DateTime(2026, 10, 4, 8, 38, 1, 758, DateTimeKind.Utc).AddTicks(4232),
+                            CreatedAt = new DateTime(2026, 10, 4, 9, 5, 50, 320, DateTimeKind.Utc).AddTicks(9599),
                             Description = "Kỹ năng xây dựng ứng dụng với ngôn ngữ C# và nền tảng .NET.",
                             IsActive = true,
                             Name = "Lập trình C# .NET"
@@ -412,7 +529,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("33333333-3333-3333-3333-333333333333"),
-                            CreatedAt = new DateTime(2026, 10, 4, 8, 38, 1, 758, DateTimeKind.Utc).AddTicks(4530),
+                            CreatedAt = new DateTime(2026, 10, 4, 9, 5, 50, 321, DateTimeKind.Utc).AddTicks(41),
                             PassingScore = 70,
                             SkillId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Status = 1,
@@ -424,7 +541,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("44444444-4444-4444-4444-444444444444"),
-                            CreatedAt = new DateTime(2026, 10, 4, 8, 38, 1, 758, DateTimeKind.Utc).AddTicks(4543),
+                            CreatedAt = new DateTime(2026, 10, 4, 9, 5, 50, 321, DateTimeKind.Utc).AddTicks(62),
                             PassingScore = 80,
                             SkillId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Status = 1,
@@ -843,6 +960,28 @@ namespace Infrastructure.Migrations
                     b.Navigation("Project");
                 });
 
+            modelBuilder.Entity("Domain.Entities.Milestone", b =>
+                {
+                    b.HasOne("Domain.Entities.Contract", "Contract")
+                        .WithMany("Milestones")
+                        .HasForeignKey("ContractId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Contract");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Notification", b =>
+                {
+                    b.HasOne("Domain.Entities.User", "User")
+                        .WithMany("Notifications")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("Domain.Entities.Project", b =>
                 {
                     b.HasOne("Domain.Entities.User", "Client")
@@ -871,6 +1010,33 @@ namespace Infrastructure.Migrations
                     b.Navigation("Project");
 
                     b.Navigation("Skill");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Review", b =>
+                {
+                    b.HasOne("Domain.Entities.Contract", "Contract")
+                        .WithMany("Reviews")
+                        .HasForeignKey("ContractId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.User", "Reviewee")
+                        .WithMany("ReviewsReceived")
+                        .HasForeignKey("RevieweeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.User", "Reviewer")
+                        .WithMany("ReviewsGiven")
+                        .HasForeignKey("ReviewerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Contract");
+
+                    b.Navigation("Reviewee");
+
+                    b.Navigation("Reviewer");
                 });
 
             modelBuilder.Entity("Domain.Entities.SkillTest", b =>
@@ -981,6 +1147,13 @@ namespace Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Domain.Entities.Contract", b =>
+                {
+                    b.Navigation("Milestones");
+
+                    b.Navigation("Reviews");
+                });
+
             modelBuilder.Entity("Domain.Entities.Invitation", b =>
                 {
                     b.Navigation("ContractDrafts");
@@ -1021,7 +1194,13 @@ namespace Infrastructure.Migrations
 
                     b.Navigation("Matches");
 
+                    b.Navigation("Notifications");
+
                     b.Navigation("Projects");
+
+                    b.Navigation("ReviewsGiven");
+
+                    b.Navigation("ReviewsReceived");
 
                     b.Navigation("VerifiedSkills");
                 });
