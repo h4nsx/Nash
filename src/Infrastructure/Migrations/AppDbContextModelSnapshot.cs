@@ -22,6 +22,130 @@ namespace Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Domain.Entities.Contract", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AcceptedDraftId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("AgreedBudget")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FreelancerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AcceptedDraftId");
+
+                    b.HasIndex("FreelancerId");
+
+                    b.HasIndex("ProjectId");
+
+                    b.ToTable("Contracts", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.ContractDraft", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContractContentHtml")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContractContentJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("InvitationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("ProposedBudget")
+                        .HasColumnType("numeric");
+
+                    b.Property<DateTime>("ProposedEndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ProposedStartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("VersionNumber")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedById");
+
+                    b.HasIndex("InvitationId");
+
+                    b.ToTable("ContractDrafts", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.ContractTemplate", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentHtml")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContentJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ContractTemplates", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Entities.FreelancerProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -50,6 +174,44 @@ namespace Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("FreelancerProfiles", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.Invitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FreelancerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ProjectId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SenderId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FreelancerId");
+
+                    b.HasIndex("ProjectId");
+
+                    b.HasIndex("SenderId");
+
+                    b.ToTable("Invitations", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Entities.Match", b =>
@@ -192,7 +354,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            CreatedAt = new DateTime(2026, 10, 2, 17, 10, 6, 950, DateTimeKind.Utc).AddTicks(2671),
+                            CreatedAt = new DateTime(2026, 10, 4, 8, 38, 1, 758, DateTimeKind.Utc).AddTicks(4221),
                             Description = "Kỹ năng lập trình front-end với thư viện ReactJS.",
                             IsActive = true,
                             Name = "Phát triển ReactJS"
@@ -200,7 +362,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("22222222-2222-2222-2222-222222222222"),
-                            CreatedAt = new DateTime(2026, 10, 2, 17, 10, 6, 950, DateTimeKind.Utc).AddTicks(2682),
+                            CreatedAt = new DateTime(2026, 10, 4, 8, 38, 1, 758, DateTimeKind.Utc).AddTicks(4232),
                             Description = "Kỹ năng xây dựng ứng dụng với ngôn ngữ C# và nền tảng .NET.",
                             IsActive = true,
                             Name = "Lập trình C# .NET"
@@ -250,7 +412,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("33333333-3333-3333-3333-333333333333"),
-                            CreatedAt = new DateTime(2026, 10, 2, 17, 10, 6, 950, DateTimeKind.Utc).AddTicks(2851),
+                            CreatedAt = new DateTime(2026, 10, 4, 8, 38, 1, 758, DateTimeKind.Utc).AddTicks(4530),
                             PassingScore = 70,
                             SkillId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Status = 1,
@@ -262,7 +424,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("44444444-4444-4444-4444-444444444444"),
-                            CreatedAt = new DateTime(2026, 10, 2, 17, 10, 6, 950, DateTimeKind.Utc).AddTicks(2866),
+                            CreatedAt = new DateTime(2026, 10, 4, 8, 38, 1, 758, DateTimeKind.Utc).AddTicks(4543),
                             PassingScore = 80,
                             SkillId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Status = 1,
@@ -578,6 +740,52 @@ namespace Infrastructure.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.Contract", b =>
+                {
+                    b.HasOne("Domain.Entities.ContractDraft", "AcceptedDraft")
+                        .WithMany()
+                        .HasForeignKey("AcceptedDraftId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.User", "Freelancer")
+                        .WithMany("ContractsAsFreelancer")
+                        .HasForeignKey("FreelancerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.Project", "Project")
+                        .WithMany("Contracts")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AcceptedDraft");
+
+                    b.Navigation("Freelancer");
+
+                    b.Navigation("Project");
+                });
+
+            modelBuilder.Entity("Domain.Entities.ContractDraft", b =>
+                {
+                    b.HasOne("Domain.Entities.User", "CreatedBy")
+                        .WithMany("ContractDraftsCreated")
+                        .HasForeignKey("CreatedById")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.Invitation", "Invitation")
+                        .WithMany("ContractDrafts")
+                        .HasForeignKey("InvitationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CreatedBy");
+
+                    b.Navigation("Invitation");
+                });
+
             modelBuilder.Entity("Domain.Entities.FreelancerProfile", b =>
                 {
                     b.HasOne("Domain.Entities.User", "User")
@@ -587,6 +795,33 @@ namespace Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Domain.Entities.Invitation", b =>
+                {
+                    b.HasOne("Domain.Entities.User", "Freelancer")
+                        .WithMany("InvitationsReceived")
+                        .HasForeignKey("FreelancerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.Project", "Project")
+                        .WithMany("Invitations")
+                        .HasForeignKey("ProjectId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Domain.Entities.User", "Sender")
+                        .WithMany("InvitationsSent")
+                        .HasForeignKey("SenderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Freelancer");
+
+                    b.Navigation("Project");
+
+                    b.Navigation("Sender");
                 });
 
             modelBuilder.Entity("Domain.Entities.Match", b =>
@@ -746,8 +981,17 @@ namespace Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("Domain.Entities.Invitation", b =>
+                {
+                    b.Navigation("ContractDrafts");
+                });
+
             modelBuilder.Entity("Domain.Entities.Project", b =>
                 {
+                    b.Navigation("Contracts");
+
+                    b.Navigation("Invitations");
+
                     b.Navigation("SkillRequirements");
                 });
 
@@ -765,7 +1009,15 @@ namespace Infrastructure.Migrations
                 {
                     b.Navigation("Attempts");
 
+                    b.Navigation("ContractDraftsCreated");
+
+                    b.Navigation("ContractsAsFreelancer");
+
                     b.Navigation("FreelancerProfile");
+
+                    b.Navigation("InvitationsReceived");
+
+                    b.Navigation("InvitationsSent");
 
                     b.Navigation("Matches");
 

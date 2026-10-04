@@ -17,6 +17,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
     public DbSet<ProjectSkillRequirement> ProjectSkillRequirements { get; set; } = null!;
     public DbSet<FreelancerProfile> FreelancerProfiles { get; set; } = null!;
     public DbSet<Match> Matches { get; set; } = null!;
+    
+    // Phase 5: Handshake
+    public DbSet<ContractTemplate> ContractTemplates { get; set; } = null!;
+    public DbSet<Invitation> Invitations { get; set; } = null!;
+    public DbSet<ContractDraft> ContractDrafts { get; set; } = null!;
+    public DbSet<Contract> Contracts { get; set; } = null!;
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -143,6 +149,72 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
                   .WithMany(u => u.Matches)
                   .HasForeignKey(e => e.FreelancerId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Phase 5: Handshake
+        modelBuilder.Entity<ContractTemplate>(entity =>
+        {
+            entity.ToTable("ContractTemplates");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+        });
+
+        modelBuilder.Entity<Invitation>(entity =>
+        {
+            entity.ToTable("Invitations");
+            entity.HasKey(e => e.Id);
+            
+            entity.HasOne(e => e.Project)
+                  .WithMany(p => p.Invitations)
+                  .HasForeignKey(e => e.ProjectId)
+                  .OnDelete(DeleteBehavior.Cascade);
+                  
+            entity.HasOne(e => e.Freelancer)
+                  .WithMany(u => u.InvitationsReceived)
+                  .HasForeignKey(e => e.FreelancerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Sender)
+                  .WithMany(u => u.InvitationsSent)
+                  .HasForeignKey(e => e.SenderId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<ContractDraft>(entity =>
+        {
+            entity.ToTable("ContractDrafts");
+            entity.HasKey(e => e.Id);
+            
+            entity.HasOne(e => e.Invitation)
+                  .WithMany(i => i.ContractDrafts)
+                  .HasForeignKey(e => e.InvitationId)
+                  .OnDelete(DeleteBehavior.Cascade);
+                  
+            entity.HasOne(e => e.CreatedBy)
+                  .WithMany(u => u.ContractDraftsCreated)
+                  .HasForeignKey(e => e.CreatedById)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Contract>(entity =>
+        {
+            entity.ToTable("Contracts");
+            entity.HasKey(e => e.Id);
+            
+            entity.HasOne(e => e.Project)
+                  .WithMany(p => p.Contracts)
+                  .HasForeignKey(e => e.ProjectId)
+                  .OnDelete(DeleteBehavior.Cascade);
+                  
+            entity.HasOne(e => e.Freelancer)
+                  .WithMany(u => u.ContractsAsFreelancer)
+                  .HasForeignKey(e => e.FreelancerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+                  
+            entity.HasOne(e => e.AcceptedDraft)
+                  .WithMany()
+                  .HasForeignKey(e => e.AcceptedDraftId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // Seed Vietnamese Data

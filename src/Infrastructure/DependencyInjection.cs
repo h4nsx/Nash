@@ -36,6 +36,8 @@ public static class DependencyInjection
             services.AddScoped<IProjectService, ProjectService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<IMatchEngineService, MatchEngineService>();
+            services.AddScoped<IContractTemplateService, ContractTemplateService>();
+            services.AddScoped<IHandshakeService, HandshakeService>();
         }
 
         return services;
