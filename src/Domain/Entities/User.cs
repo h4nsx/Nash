@@ -18,4 +18,10 @@ public class User : Entity
     
     public FreelancerProfile? FreelancerProfile { get; set; }
     public ICollection<Match> Matches { get; set; } = new List<Match>();
+    
+    // Phase 5: Handshake Navigation
+    public ICollection<Invitation> InvitationsReceived { get; set; } = new List<Invitation>();
+    public ICollection<Invitation> InvitationsSent { get; set; } = new List<Invitation>();
+    public ICollection<ContractDraft> ContractDraftsCreated { get; set; } = new List<ContractDraft>();
+    public ICollection<Contract> ContractsAsFreelancer { get; set; } = new List<Contract>();
 }
