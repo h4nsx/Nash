@@ -23,4 +23,8 @@ public class Contract
     public Project Project { get; set; } = null!;
     public User Freelancer { get; set; } = null!;
     public ContractDraft AcceptedDraft { get; set; } = null!;
+    
+    // Phase 6: Work
+    public ICollection<Milestone> Milestones { get; set; } = new List<Milestone>();
+    public ICollection<Review> Reviews { get; set; } = new List<Review>();
 }

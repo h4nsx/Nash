@@ -23,6 +23,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
     public DbSet<Invitation> Invitations { get; set; } = null!;
     public DbSet<ContractDraft> ContractDrafts { get; set; } = null!;
     public DbSet<Contract> Contracts { get; set; } = null!;
+    
+    // Phase 6: Work
+    public DbSet<Milestone> Milestones { get; set; } = null!;
+    public DbSet<Review> Reviews { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -215,6 +220,51 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
                   .WithMany()
                   .HasForeignKey(e => e.AcceptedDraftId)
                   .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // Phase 6: Work
+        modelBuilder.Entity<Milestone>(entity =>
+        {
+            entity.ToTable("Milestones");
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            
+            entity.HasOne(e => e.Contract)
+                  .WithMany(c => c.Milestones)
+                  .HasForeignKey(e => e.ContractId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Review>(entity =>
+        {
+            entity.ToTable("Reviews");
+            entity.HasKey(e => e.Id);
+            
+            entity.HasOne(e => e.Contract)
+                  .WithMany(c => c.Reviews)
+                  .HasForeignKey(e => e.ContractId)
+                  .OnDelete(DeleteBehavior.Cascade);
+                  
+            entity.HasOne(e => e.Reviewer)
+                  .WithMany(u => u.ReviewsGiven)
+                  .HasForeignKey(e => e.ReviewerId)
+                  .OnDelete(DeleteBehavior.Restrict);
+                  
+            entity.HasOne(e => e.Reviewee)
+                  .WithMany(u => u.ReviewsReceived)
+                  .HasForeignKey(e => e.RevieweeId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.ToTable("Notifications");
+            entity.HasKey(e => e.Id);
+            
+            entity.HasOne(e => e.User)
+                  .WithMany(u => u.Notifications)
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Seed Vietnamese Data
