@@ -1,6 +1,15 @@
 import Link from 'next/link';
+import { useAuth } from '@/lib/auth/AuthContext';
+import { useRouter } from 'next/router';
 
 export function Navbar() {
+  const { user, logout, isInitialized } = useAuth();
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    await logout();
+  };
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/80">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
@@ -36,18 +45,34 @@ export function Navbar() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Link
-            href="/login"
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-          >
-            Đăng Nhập
-          </Link>
-          <Link
-            href="/register"
-            className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
-          >
-            Đăng Ký
-          </Link>
+          {isInitialized && user ? (
+            <div className="flex items-center gap-4">
+              <Link href="/dashboard" className="text-sm font-medium text-zinc-900 dark:text-white">
+                Chào, {user.lastName} {user.firstName}
+              </Link>
+              <button
+                onClick={handleLogout}
+                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                Đăng Xuất
+              </button>
+            </div>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+              >
+                Đăng Nhập
+              </Link>
+              <Link
+                href="/register"
+                className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+              >
+                Đăng Ký
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>
