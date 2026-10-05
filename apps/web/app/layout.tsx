@@ -17,7 +17,11 @@ export const metadata: Metadata = {
   description: "Network · Ability · Skills · Human - A production-oriented freelance marketplace",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html
       lang="en"

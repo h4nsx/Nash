@@ -18,19 +18,19 @@ export function Navbar() {
               href="/projects"
               className="transition hover:text-zinc-900 dark:hover:text-white"
             >
-              Browse Projects
+              Tìm Việc
             </Link>
             <Link
               href="/freelancers"
               className="transition hover:text-zinc-900 dark:hover:text-white"
             >
-              Find Talent
+              Thuê Chuyên Gia
             </Link>
             <Link
               href="/categories"
               className="transition hover:text-zinc-900 dark:hover:text-white"
             >
-              Categories
+              Danh Mục
             </Link>
           </nav>
         </div>
@@ -40,13 +40,13 @@ export function Navbar() {
             href="/login"
             className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
           >
-            Log In
+            Đăng Nhập
           </Link>
           <Link
             href="/register"
             className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
           >
-            Sign Up
+            Đăng Ký
           </Link>
         </div>
       </div>

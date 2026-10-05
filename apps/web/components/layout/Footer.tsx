@@ -7,18 +7,18 @@ export function Footer() {
             <span className="font-semibold text-zinc-900 dark:text-white">NASH</span>
             <span>—</span>
             <span className="text-xs text-zinc-500">
-              Network · Ability · Skills · Human
+              Mạng Lưới · Khả Năng · Kỹ Năng · Con Người
             </span>
           </div>
           <div className="flex gap-6 text-xs">
-            <span>Modular Monolith</span>
+            <span>Kiến trúc Modular Monolith</span>
             <span>•</span>
             <span>Clean Architecture</span>
             <span>•</span>
             <span>ASP.NET Core & Next.js</span>
           </div>
           <p className="text-xs text-zinc-500">
-            &copy; {new Date().getFullYear()} NASH Platform. Phase 0 Foundation.
+            &copy; {new Date().getFullYear()} Nền tảng NASH. Giai đoạn 0: Khởi tạo.
           </p>
         </div>
       </div>
