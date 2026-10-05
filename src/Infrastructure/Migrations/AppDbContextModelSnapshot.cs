@@ -22,6 +22,69 @@ namespace Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Domain.Entities.Article", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AuthorId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentHtml")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContentJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("SeoDescription")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SeoKeywords")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SeoTitle")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ThumbnailUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorId");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("Articles", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Entities.Contract", b =>
                 {
                     b.Property<Guid>("Id")
@@ -252,6 +315,38 @@ namespace Infrastructure.Migrations
                     b.ToTable("Matches", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.MediaAsset", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<long>("SizeInBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("UploadedById")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Url")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("MediaAssets", (string)null);
+                });
+
             modelBuilder.Entity("Domain.Entities.Milestone", b =>
                 {
                     b.Property<Guid>("Id")
@@ -331,6 +426,57 @@ namespace Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("Notifications", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.Page", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentHtml")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContentJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("SeoDescription")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SeoKeywords")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("SeoTitle")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Slug")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Slug")
+                        .IsUnique();
+
+                    b.ToTable("Pages", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Entities.Project", b =>
@@ -471,7 +617,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            CreatedAt = new DateTime(2026, 10, 4, 9, 5, 50, 320, DateTimeKind.Utc).AddTicks(9588),
+                            CreatedAt = new DateTime(2026, 10, 4, 15, 37, 52, 583, DateTimeKind.Utc).AddTicks(5908),
                             Description = "Kỹ năng lập trình front-end với thư viện ReactJS.",
                             IsActive = true,
                             Name = "Phát triển ReactJS"
@@ -479,7 +625,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("22222222-2222-2222-2222-222222222222"),
-                            CreatedAt = new DateTime(2026, 10, 4, 9, 5, 50, 320, DateTimeKind.Utc).AddTicks(9599),
+                            CreatedAt = new DateTime(2026, 10, 4, 15, 37, 52, 583, DateTimeKind.Utc).AddTicks(5920),
                             Description = "Kỹ năng xây dựng ứng dụng với ngôn ngữ C# và nền tảng .NET.",
                             IsActive = true,
                             Name = "Lập trình C# .NET"
@@ -529,7 +675,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("33333333-3333-3333-3333-333333333333"),
-                            CreatedAt = new DateTime(2026, 10, 4, 9, 5, 50, 321, DateTimeKind.Utc).AddTicks(41),
+                            CreatedAt = new DateTime(2026, 10, 4, 15, 37, 52, 583, DateTimeKind.Utc).AddTicks(8163),
                             PassingScore = 70,
                             SkillId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Status = 1,
@@ -541,7 +687,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("44444444-4444-4444-4444-444444444444"),
-                            CreatedAt = new DateTime(2026, 10, 4, 9, 5, 50, 321, DateTimeKind.Utc).AddTicks(62),
+                            CreatedAt = new DateTime(2026, 10, 4, 15, 37, 52, 583, DateTimeKind.Utc).AddTicks(8177),
                             PassingScore = 80,
                             SkillId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Status = 1,
@@ -587,6 +733,31 @@ namespace Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("SkillTestAttempts", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.SystemSetting", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Value")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Key")
+                        .IsUnique();
+
+                    b.ToTable("SystemSettings", (string)null);
                 });
 
             modelBuilder.Entity("Domain.Entities.User", b =>
@@ -855,6 +1026,17 @@ namespace Infrastructure.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name");
 
                     b.ToTable("AspNetUserTokens", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.Article", b =>
+                {
+                    b.HasOne("Domain.Entities.User", "Author")
+                        .WithMany("AuthoredArticles")
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Author");
                 });
 
             modelBuilder.Entity("Domain.Entities.Contract", b =>
@@ -1181,6 +1363,8 @@ namespace Infrastructure.Migrations
             modelBuilder.Entity("Domain.Entities.User", b =>
                 {
                     b.Navigation("Attempts");
+
+                    b.Navigation("AuthoredArticles");
 
                     b.Navigation("ContractDraftsCreated");
 

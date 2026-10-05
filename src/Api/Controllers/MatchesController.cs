@@ -4,6 +4,7 @@ using Application.Common.Models;
 using Domain.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace Api.Controllers;
 
@@ -20,6 +21,7 @@ public class MatchesController : ControllerBase
 
     [Authorize(Roles = "Client")]
     [HttpPost("{projectId}/matches/generate")]
+    [EnableRateLimiting("Strict")]
     public async Task<ActionResult<ApiResponse<List<MatchDto>>>> GenerateMatches(Guid projectId)
     {
         var clientId = User.FindFirstValue(ClaimTypes.NameIdentifier);

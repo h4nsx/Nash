@@ -5,6 +5,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using Infrastructure.Hubs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +33,19 @@ builder.Services.AddAuthentication(options =>
         ValidIssuer = builder.Configuration["Jwt:Issuer"] ?? "nash-api",
         ValidAudience = builder.Configuration["Jwt:Audience"] ?? "nash-web",
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
+    };
+    
+    options.Events = new JwtBearerEvents
+    {
+        OnMessageReceived = context =>
+        {
+            var token = context.Request.Cookies["X-Access-Token"];
+            if (!string.IsNullOrEmpty(token))
+            {
+                context.Token = token;
+            }
+            return Task.CompletedTask;
+        }
     };
 });
 builder.Services.AddAuthorization();
@@ -79,6 +93,8 @@ app.UseSwaggerUI(c =>
 
 app.UseCors("DefaultCorsPolicy");
 
+app.UseRateLimiter();
+
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -99,6 +115,7 @@ app.MapHealthChecks("/health/ready", new HealthCheckOptions
 });
 
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
 

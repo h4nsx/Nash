@@ -29,4 +29,7 @@ public class User : Entity
     public ICollection<Notification> Notifications { get; set; } = new List<Notification>();
     public ICollection<Review> ReviewsGiven { get; set; } = new List<Review>();
     public ICollection<Review> ReviewsReceived { get; set; } = new List<Review>();
+    
+    // Phase 7: CMS
+    public ICollection<Article> AuthoredArticles { get; set; } = new List<Article>();
 }
