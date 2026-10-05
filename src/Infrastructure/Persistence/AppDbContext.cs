@@ -28,6 +28,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
     public DbSet<Milestone> Milestones { get; set; } = null!;
     public DbSet<Review> Reviews { get; set; } = null!;
     public DbSet<Notification> Notifications { get; set; } = null!;
+    
+    // Phase 7: CMS / SEO
+    public DbSet<SystemSetting> SystemSettings { get; set; } = null!;
+    public DbSet<Article> Articles { get; set; } = null!;
+    public DbSet<Page> Pages { get; set; } = null!;
+    public DbSet<MediaAsset> MediaAssets { get; set; } = null!;
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options)
     {
@@ -265,6 +271,39 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
                   .WithMany(u => u.Notifications)
                   .HasForeignKey(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Phase 7: CMS / SEO
+        modelBuilder.Entity<SystemSetting>(entity =>
+        {
+            entity.ToTable("SystemSettings");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Key).IsUnique();
+        });
+
+        modelBuilder.Entity<Article>(entity =>
+        {
+            entity.ToTable("Articles");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Slug).IsUnique();
+            
+            entity.HasOne(e => e.Author)
+                  .WithMany(u => u.AuthoredArticles)
+                  .HasForeignKey(e => e.AuthorId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Page>(entity =>
+        {
+            entity.ToTable("Pages");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.Slug).IsUnique();
+        });
+
+        modelBuilder.Entity<MediaAsset>(entity =>
+        {
+            entity.ToTable("MediaAssets");
+            entity.HasKey(e => e.Id);
         });
 
         // Seed Vietnamese Data

@@ -1,9 +1,14 @@
+using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.RateLimiting;
+using Application.Common.Interfaces;
 using Application.Common.Interfaces;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
 using Infrastructure.Identity;
 using Infrastructure.Services;
+using Infrastructure.BackgroundJobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -22,6 +27,25 @@ public static class DependencyInjection
 
             services.AddScoped<IAppDbContext>(provider => provider.GetRequiredService<AppDbContext>());
             
+            services.AddMemoryCache();
+            
+            services.AddRateLimiter(options =>
+            {
+                options.AddFixedWindowLimiter("Strict", opt =>
+                {
+                    opt.Window = TimeSpan.FromMinutes(1);
+                    opt.PermitLimit = 5;
+                    opt.QueueLimit = 0;
+                });
+                
+                options.AddFixedWindowLimiter("Global", opt =>
+                {
+                    opt.Window = TimeSpan.FromMinutes(1);
+                    opt.PermitLimit = 100;
+                    opt.QueueLimit = 2;
+                });
+            });
+
             services.AddIdentityCore<ApplicationUser>(options => 
             {
                 options.User.RequireUniqueEmail = true;
@@ -39,6 +63,13 @@ public static class DependencyInjection
             services.AddScoped<IContractTemplateService, ContractTemplateService>();
             services.AddScoped<IHandshakeService, HandshakeService>();
             services.AddScoped<IWorkService, WorkService>();
+            services.AddScoped<ISystemSettingsService, SystemSettingsService>();
+            services.AddScoped<ICmsService, CmsService>();
+            
+            services.AddSignalR();
+            services.AddScoped<IRealTimeNotificationService, RealTimeNotificationService>();
+            
+            services.AddHostedService<InvitationExpirationService>();
         }
 
         return services;

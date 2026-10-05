@@ -9,10 +9,12 @@ namespace Infrastructure.Services;
 public class WorkService : IWorkService
 {
     private readonly AppDbContext _context;
+    private readonly IRealTimeNotificationService _realTimeNotification;
 
-    public WorkService(AppDbContext context)
+    public WorkService(AppDbContext context, IRealTimeNotificationService realTimeNotification)
     {
         _context = context;
+        _realTimeNotification = realTimeNotification;
     }
 
     public async Task<(bool Success, Guid MilestoneId, string[] Errors)> CreateMilestoneAsync(Guid contractId, CreateMilestoneDto request, string clientId)
@@ -71,6 +73,7 @@ public class WorkService : IWorkService
         _context.Notifications.Add(notification);
 
         await _context.SaveChangesAsync();
+        await _realTimeNotification.SendNotificationToUserAsync(notification.UserId.ToString(), notification.Title, notification.Message);
         return (true, Array.Empty<string>());
     }
 
