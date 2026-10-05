@@ -40,6 +40,7 @@ export async function apiClient<T>(
   };
 
   const response = await fetch(url, {
+    credentials: 'include',
     ...options,
     headers: {
       ...defaultHeaders,
