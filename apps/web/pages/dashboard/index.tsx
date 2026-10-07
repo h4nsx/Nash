@@ -1,42 +1,37 @@
+import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { useRouter } from 'next/router';
-import { useEffect } from 'react';
 
-export default function DashboardPage() {
-  const { user, isInitialized } = useAuth();
-  const router = useRouter();
-
-  // Additional client-side protection just in case
-  useEffect(() => {
-    if (isInitialized && !user) {
-      router.push('/login');
-    }
-  }, [user, isInitialized, router]);
-
-  if (!isInitialized || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-emerald-500 border-t-transparent"></div>
-      </div>
-    );
-  }
+export default function DashboardOverviewPage() {
+  const { user } = useAuth();
 
   return (
-    <div className="min-h-screen bg-zinc-50 px-4 py-8 dark:bg-zinc-950 sm:px-6 lg:px-8">
+    <DashboardLayout>
       <div className="mx-auto max-w-7xl">
-        <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white">
-          Dashboard
+        <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
+          Tổng quan
         </h1>
         <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-          Chào mừng, {user.lastName} {user.firstName}. Vai trò của bạn là {user.role === 'Admin' ? 'Quản Trị Viên' : user.role === 'Client' ? 'Khách Hàng' : 'Chuyên Gia'}.
+          Chào mừng trở lại, {user?.lastName} {user?.firstName}. Dưới đây là thông tin hoạt động của bạn.
         </p>
 
-        <div className="mt-8 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Nội dung dashboard sẽ được xây dựng tại đây.
-          </p>
+        <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {/* Stat Card 1 */}
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Công việc đang thực hiện</h3>
+            <p className="mt-2 text-3xl font-bold text-zinc-900 dark:text-white">0</p>
+          </div>
+          {/* Stat Card 2 */}
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Lời mời ghép nối</h3>
+            <p className="mt-2 text-3xl font-bold text-zinc-900 dark:text-white">0</p>
+          </div>
+          {/* Stat Card 3 */}
+          <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <h3 className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Dự án đã ứng tuyển</h3>
+            <p className="mt-2 text-3xl font-bold text-zinc-900 dark:text-white">0</p>
+          </div>
         </div>
       </div>
-    </div>
+    </DashboardLayout>
   );
 }
