@@ -67,12 +67,14 @@ export default function MatchesPage() {
     try {
       setLoading(true);
       setError(null);
-      const res = await apiClient.get<{ data: Invitation[] }>('/handshake/invitations', {
+      const res = await apiClient<Invitation[]>('/handshake/invitations', {
         headers: {
           'Cache-Control': 'no-cache'
         }
       });
-      setInvitations(res.data);
+      if (res.success && res.data) {
+        setInvitations(res.data);
+      }
     } catch (err: any) {
       if (err instanceof ApiException) {
         setError(err.error?.message || 'Không thể tải danh sách lời mời');
@@ -91,7 +93,9 @@ export default function MatchesPage() {
   const handleAction = async (id: string, action: 'accept' | 'decline') => {
     try {
       setProcessingId(id);
-      await apiClient.post(`/handshake/invitations/${id}/${action}`, {});
+      await apiClient(`/handshake/invitations/${id}/${action}`, {
+        method: 'POST'
+      });
       await fetchInvitations();
       if (selectedInvitation?.id === id) {
         setSelectedInvitation(null);

@@ -253,9 +253,9 @@ public class HandshakeService : IHandshakeService
             // Wait, we didn't include Project.Client. Let's just use Sender.DisplayName if Sender is Client, else leave it empty.
             // Actually, we should include Project.Client if we need it, but Sender is usually the Client for now.
             // Let's just map what we have.
-            ClientName = invitation.Project.ClientId == invitation.SenderId ? invitation.Sender.DisplayName : "Client",
+            ClientName = invitation.Project.ClientId == invitation.SenderId ? $"{invitation.Sender.FirstName} {invitation.Sender.LastName}" : "Client",
             FreelancerId = invitation.FreelancerId,
-            FreelancerName = invitation.Freelancer.DisplayName,
+            FreelancerName = $"{invitation.Freelancer.FirstName} {invitation.Freelancer.LastName}",
             SenderId = invitation.SenderId,
             Status = invitation.Status,
             ExpiresAt = invitation.ExpiresAt,
@@ -270,7 +270,7 @@ public class HandshakeService : IHandshakeService
                 ProposedEndDate = d.ProposedEndDate,
                 ContractContentHtml = d.ContractContentHtml,
                 CreatedById = d.CreatedById,
-                CreatedByName = d.CreatedBy.DisplayName,
+                CreatedByName = $"{d.CreatedBy.FirstName} {d.CreatedBy.LastName}",
                 Status = d.Status,
                 CreatedAt = d.CreatedAt
             }).OrderByDescending(d => d.VersionNumber).ToList()
