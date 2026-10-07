@@ -199,6 +199,36 @@ public class ProjectService : IProjectService
             .ToListAsync();
     }
 
+    public async Task<List<ProjectDto>> GetPublishedProjectsAsync()
+    {
+        return await _context.Projects
+            .Include(p => p.SkillRequirements).ThenInclude(r => r.Skill)
+            .Where(p => p.Status == ProjectStatus.Published)
+            .OrderByDescending(p => p.CreatedAt)
+            .Select(p => new ProjectDto
+            {
+                Id = p.Id,
+                Title = p.Title,
+                Description = p.Description,
+                BudgetMin = p.BudgetMin,
+                BudgetMax = p.BudgetMax,
+                StartDate = p.StartDate,
+                EndDate = p.EndDate,
+                Status = p.Status,
+                CreatedAt = p.CreatedAt,
+                UpdatedAt = p.UpdatedAt,
+                SkillRequirements = p.SkillRequirements.Select(r => new ProjectSkillRequirementDto
+                {
+                    Id = r.Id,
+                    SkillId = r.SkillId,
+                    SkillName = r.Skill.Name,
+                    IsMandatory = r.IsMandatory,
+                    MinimumExperienceYears = r.MinimumExperienceYears
+                }).ToList()
+            })
+            .ToListAsync();
+    }
+
     public async Task<ProjectDto?> GetProjectByIdAsync(Guid projectId)
     {
         var project = await _context.Projects

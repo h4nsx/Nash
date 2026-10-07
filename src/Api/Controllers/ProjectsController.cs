@@ -139,6 +139,14 @@ public class ProjectsController : ControllerBase
     }
 
     [Authorize]
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<List<ProjectDto>>>> GetPublishedProjects()
+    {
+        var projects = await _projectService.GetPublishedProjectsAsync();
+        return Ok(ApiResponse<List<ProjectDto>>.Ok(projects));
+    }
+
+    [Authorize]
     [HttpGet("{projectId}")]
     public async Task<ActionResult<ApiResponse<ProjectDto>>> GetProjectById(Guid projectId)
     {

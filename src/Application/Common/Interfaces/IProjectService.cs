@@ -10,6 +10,7 @@ public interface IProjectService
     Task<(bool Success, string[] Errors)> RemoveSkillRequirementAsync(Guid projectId, Guid requirementId, string clientId);
     Task<(bool Success, string[] Errors)> PublishProjectAsync(Guid projectId, string clientId);
     Task<List<ProjectDto>> GetClientProjectsAsync(string clientId);
+    Task<List<ProjectDto>> GetPublishedProjectsAsync();
     Task<ProjectDto?> GetProjectByIdAsync(Guid projectId);
 }
 
