@@ -78,4 +78,64 @@ public class UserService : IUserService
 
         return (true, Array.Empty<string>());
     }
+
+    public async Task<FreelancerProfileDto?> GetFreelancerProfileAsync(string userId)
+    {
+        var user = await _context.DomainUsers
+            .Include(u => u.FreelancerProfile)
+            .Include(u => u.VerifiedSkills)
+                .ThenInclude(vs => vs.Skill)
+            .FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
+
+        if (user == null || user.Role != Role.Freelancer)
+            return null;
+
+        if (user.FreelancerProfile == null)
+        {
+            // Initialize empty profile if not exist
+            var newProfile = new Domain.Entities.FreelancerProfile
+            {
+                UserId = user.Id
+            };
+            _context.Add(newProfile);
+            await _context.SaveChangesAsync();
+            user.FreelancerProfile = newProfile;
+        }
+
+        return new FreelancerProfileDto
+        {
+            Id = user.FreelancerProfile.Id,
+            HourlyRate = user.FreelancerProfile.HourlyRate,
+            YearsOfExperience = user.FreelancerProfile.YearsOfExperience,
+            IsAvailable = user.FreelancerProfile.IsAvailable,
+            Bio = user.FreelancerProfile.Bio,
+            Skills = user.VerifiedSkills.Select(vs => vs.Skill.Name).ToList()
+        };
+    }
+
+    public async Task<(bool Success, string[] Errors)> UpdateFreelancerProfileAsync(string userId, UpdateFreelancerProfileDto request)
+    {
+        var user = await _context.DomainUsers
+            .Include(u => u.FreelancerProfile)
+            .FirstOrDefaultAsync(u => u.Id == Guid.Parse(userId));
+
+        if (user == null || user.Role != Role.Freelancer)
+        {
+            return (false, new[] { "Không tìm thấy hồ sơ Freelancer." });
+        }
+
+        if (user.FreelancerProfile == null)
+        {
+            user.FreelancerProfile = new Domain.Entities.FreelancerProfile { UserId = user.Id };
+            _context.Add(user.FreelancerProfile);
+        }
+
+        user.FreelancerProfile.HourlyRate = request.HourlyRate;
+        user.FreelancerProfile.YearsOfExperience = request.YearsOfExperience;
+        user.FreelancerProfile.IsAvailable = request.IsAvailable;
+        user.FreelancerProfile.Bio = request.Bio;
+
+        await _context.SaveChangesAsync();
+        return (true, Array.Empty<string>());
+    }
 }

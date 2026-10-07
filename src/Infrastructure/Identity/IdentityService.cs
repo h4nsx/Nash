@@ -79,14 +79,14 @@ public class IdentityService : IIdentityService
                 return (false, null, new[] { "Không tìm thấy hồ sơ người dùng." });
             }
 
-            var authResponse = new AuthResponse
-            {
-                Email = domainUser.Email,
-                Role = domainUser.Role.ToString(),
-                FirstName = domainUser.FirstName,
-                LastName = domainUser.LastName,
-                Token = _jwtService.GenerateToken(domainUser.IdentityId, domainUser.Email, domainUser.FirstName, domainUser.LastName, domainUser.Role)
-            };
+        var authResponse = new AuthResponse
+        {
+            Email = domainUser.Email,
+            Role = domainUser.Role.ToString(),
+            FirstName = domainUser.FirstName,
+            LastName = domainUser.LastName,
+            Token = _jwtService.GenerateToken(domainUser.Id.ToString(), domainUser.Email, domainUser.FirstName, domainUser.LastName, domainUser.Role)
+        };
 
             return (true, authResponse, Array.Empty<string>());
         }

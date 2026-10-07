@@ -2,6 +2,7 @@ using Application.Common.Interfaces;
 using Application.Common.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace Api.Controllers;
 
@@ -60,5 +61,41 @@ public class UsersController : ControllerBase
         }
 
         return Ok(ApiResponse<object>.Ok(new { Message = "Xóa người dùng thành công." }));
+    }
+
+    [Authorize(Roles = "Freelancer")]
+    [HttpGet("me/profile")]
+    public async Task<ActionResult<ApiResponse<FreelancerProfileDto>>> GetMyProfile()
+    {
+        var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var profile = await _userService.GetFreelancerProfileAsync(userId);
+        if (profile == null)
+            return NotFound(new ApiErrorResponse { StatusCode = 404, Code = "PROFILE_NOT_FOUND", Message = "Không tìm thấy hồ sơ." });
+
+        return Ok(ApiResponse<FreelancerProfileDto>.Ok(profile));
+    }
+
+    [Authorize(Roles = "Freelancer")]
+    [HttpPut("me/profile")]
+    public async Task<ActionResult<ApiResponse<object>>> UpdateMyProfile([FromBody] UpdateFreelancerProfileDto request)
+    {
+        var userId = User.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var result = await _userService.UpdateFreelancerProfileAsync(userId, request);
+
+        if (!result.Success)
+        {
+            return BadRequest(new ApiErrorResponse 
+            { 
+                StatusCode = 400, 
+                Code = "UPDATE_PROFILE_FAILED", 
+                Message = result.Errors.FirstOrDefault() ?? "Không thể cập nhật hồ sơ." 
+            });
+        }
+
+        return Ok(ApiResponse<object>.Ok(new { Message = "Cập nhật hồ sơ thành công." }));
     }
 }
