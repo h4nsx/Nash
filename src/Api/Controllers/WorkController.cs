@@ -18,6 +18,47 @@ public class WorkController : ControllerBase
         _workService = workService;
     }
 
+    [HttpGet("contracts")]
+    public async Task<ActionResult<ApiResponse<List<ContractDto>>>> GetMyContracts()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+        var role = User.FindFirstValue(ClaimTypes.Role);
+
+        var contracts = await _workService.GetUserContractsAsync(userId, role);
+        return Ok(ApiResponse<List<ContractDto>>.Ok(contracts));
+    }
+
+    [HttpGet("contracts/{id}")]
+    public async Task<ActionResult<ApiResponse<ContractDto>>> GetContractById(Guid id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var contract = await _workService.GetContractByIdAsync(id, userId);
+        if (contract == null)
+        {
+            return NotFound(new ApiErrorResponse 
+            { 
+                StatusCode = 404, 
+                Code = "CONTRACT_NOT_FOUND", 
+                Message = "Không tìm thấy hợp đồng hoặc bạn không có quyền truy cập." 
+            });
+        }
+
+        return Ok(ApiResponse<ContractDto>.Ok(contract));
+    }
+
+    [HttpGet("contracts/{contractId}/milestones")]
+    public async Task<ActionResult<ApiResponse<List<MilestoneDto>>>> GetContractMilestones(Guid contractId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var milestones = await _workService.GetContractMilestonesAsync(contractId, userId);
+        return Ok(ApiResponse<List<MilestoneDto>>.Ok(milestones));
+    }
+
     [HttpPost("contracts/{contractId}/milestones")]
     [Authorize(Roles = "Client")]
     public async Task<ActionResult<ApiResponse<object>>> CreateMilestone(Guid contractId, [FromBody] CreateMilestoneDto request)
@@ -34,6 +75,7 @@ public class WorkController : ControllerBase
     }
 
     [HttpPost("milestones/{id}/submit")]
+    [HttpPut("milestones/{id}/submit")]
     [Authorize(Roles = "Freelancer")]
     public async Task<ActionResult<ApiResponse<object>>> SubmitMilestone(Guid id, [FromBody] SubmitMilestoneRequest request)
     {
@@ -49,6 +91,7 @@ public class WorkController : ControllerBase
     }
 
     [HttpPost("milestones/{id}/request-changes")]
+    [HttpPut("milestones/{id}/request-changes")]
     [Authorize(Roles = "Client")]
     public async Task<ActionResult<ApiResponse<object>>> RequestMilestoneChanges(Guid id, [FromBody] RequestChangesRequest request)
     {
@@ -64,6 +107,7 @@ public class WorkController : ControllerBase
     }
 
     [HttpPost("milestones/{id}/accept")]
+    [HttpPut("milestones/{id}/accept")]
     [Authorize(Roles = "Client")]
     public async Task<ActionResult<ApiResponse<object>>> AcceptMilestone(Guid id)
     {

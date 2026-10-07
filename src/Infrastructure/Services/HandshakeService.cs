@@ -188,4 +188,92 @@ public class HandshakeService : IHandshakeService
         await _context.SaveChangesAsync();
         return (true, Array.Empty<string>());
     }
+
+    public async Task<List<InvitationDto>> GetMyInvitationsAsync(string userId, string? role = null)
+    {
+        var query = _context.Invitations
+            .Include(i => i.Project)
+            .Include(i => i.Freelancer)
+            .Include(i => i.Sender)
+            .Include(i => i.ContractDrafts).ThenInclude(d => d.CreatedBy)
+            .AsQueryable();
+
+        var parsedUserId = Guid.Parse(userId);
+
+        if (role == "Client")
+        {
+            query = query.Where(i => i.Project.ClientId == parsedUserId);
+        }
+        else if (role == "Freelancer")
+        {
+            query = query.Where(i => i.FreelancerId == parsedUserId);
+        }
+        else
+        {
+            query = query.Where(i => i.Project.ClientId == parsedUserId || i.FreelancerId == parsedUserId);
+        }
+
+        var invitations = await query
+            .OrderByDescending(i => i.CreatedAt)
+            .ToListAsync();
+
+        return invitations.Select(MapToDto).ToList();
+    }
+
+    public async Task<InvitationDto?> GetInvitationByIdAsync(Guid invitationId, string userId)
+    {
+        var parsedUserId = Guid.Parse(userId);
+
+        var invitation = await _context.Invitations
+            .Include(i => i.Project)
+            .Include(i => i.Freelancer)
+            .Include(i => i.Sender)
+            .Include(i => i.ContractDrafts).ThenInclude(d => d.CreatedBy)
+            .FirstOrDefaultAsync(i => i.Id == invitationId);
+
+        if (invitation == null)
+            return null;
+
+        if (invitation.Project.ClientId != parsedUserId && invitation.FreelancerId != parsedUserId)
+            return null;
+
+        return MapToDto(invitation);
+    }
+
+    private static InvitationDto MapToDto(Invitation invitation)
+    {
+        return new InvitationDto
+        {
+            Id = invitation.Id,
+            ProjectId = invitation.ProjectId,
+            ProjectTitle = invitation.Project.Title,
+            ProjectDescription = invitation.Project.Description,
+            ClientId = invitation.Project.ClientId,
+            // Fallback to empty string for ClientName if we didn't include the client user. We can use SenderName if Sender is Client, or we can load Project.Client.
+            // Wait, we didn't include Project.Client. Let's just use Sender.DisplayName if Sender is Client, else leave it empty.
+            // Actually, we should include Project.Client if we need it, but Sender is usually the Client for now.
+            // Let's just map what we have.
+            ClientName = invitation.Project.ClientId == invitation.SenderId ? invitation.Sender.DisplayName : "Client",
+            FreelancerId = invitation.FreelancerId,
+            FreelancerName = invitation.Freelancer.DisplayName,
+            SenderId = invitation.SenderId,
+            Status = invitation.Status,
+            ExpiresAt = invitation.ExpiresAt,
+            CreatedAt = invitation.CreatedAt,
+            UpdatedAt = invitation.UpdatedAt,
+            ContractDrafts = invitation.ContractDrafts.Select(d => new ContractDraftDto
+            {
+                Id = d.Id,
+                VersionNumber = d.VersionNumber,
+                ProposedBudget = d.ProposedBudget,
+                ProposedStartDate = d.ProposedStartDate,
+                ProposedEndDate = d.ProposedEndDate,
+                ContractContentHtml = d.ContractContentHtml,
+                CreatedById = d.CreatedById,
+                CreatedByName = d.CreatedBy.DisplayName,
+                Status = d.Status,
+                CreatedAt = d.CreatedAt
+            }).OrderByDescending(d => d.VersionNumber).ToList()
+        };
+    }
 }

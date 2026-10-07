@@ -18,6 +18,31 @@ public class HandshakeController : ControllerBase
         _handshakeService = handshakeService;
     }
 
+    [HttpGet("invitations")]
+    public async Task<ActionResult<ApiResponse<List<InvitationDto>>>> GetMyInvitations()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var role = User.FindFirstValue(ClaimTypes.Role);
+
+        var invitations = await _handshakeService.GetMyInvitationsAsync(userId, role);
+        return Ok(ApiResponse<List<InvitationDto>>.Ok(invitations));
+    }
+
+    [HttpGet("invitations/{id}")]
+    public async Task<ActionResult<ApiResponse<InvitationDto>>> GetInvitationById(Guid id)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var invitation = await _handshakeService.GetInvitationByIdAsync(id, userId);
+        if (invitation == null)
+            return NotFound(new ApiErrorResponse { StatusCode = 404, Code = "INVITATION_NOT_FOUND", Message = "Không tìm thấy lời mời." });
+
+        return Ok(ApiResponse<InvitationDto>.Ok(invitation));
+    }
+
     [HttpPost("invitations")]
     [Authorize(Roles = "Client")]
     public async Task<ActionResult<ApiResponse<object>>> SendInvitation([FromBody] SendInvitationDto request)
