@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (storedUser) {
       try {
         setUser(JSON.parse(storedUser));
-      } catch (e) {
+      } catch {
         localStorage.removeItem('nash_user');
       }
     }

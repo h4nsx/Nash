@@ -1,20 +1,9 @@
 import type { AppProps } from 'next/app';
-import { Geist, Geist_Mono } from 'next/font/google';
 import { useRouter } from 'next/router';
 import '@/styles/globals.css';
 import { Navbar } from '@/components/Navbar';
 import { Footer } from '@/components/Footer';
 import { AuthProvider } from '@/lib/auth/AuthContext';
-
-const geistSans = Geist({
-  variable: '--font-geist-sans',
-  subsets: ['latin'],
-});
-
-const geistMono = Geist_Mono({
-  variable: '--font-geist-mono',
-  subsets: ['latin'],
-});
 
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
@@ -27,7 +16,7 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <AuthProvider>
-      <div className={`${geistSans.variable} ${geistMono.variable} font-sans min-h-screen flex flex-col bg-background text-foreground antialiased`}>
+      <div className="font-sans min-h-screen flex flex-col bg-background text-foreground antialiased">
         {!hideLayout && <Navbar />}
         <main className="flex-1 w-full">
           <Component {...pageProps} />

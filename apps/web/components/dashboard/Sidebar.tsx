@@ -10,8 +10,7 @@ import {
   Handshake,
   LogOut,
   X,
-  User,
-  ShieldCheck
+  User
 } from 'lucide-react';
 
 interface SidebarProps {

@@ -281,9 +281,6 @@ export default function HomePage() {
                       <p className="text-xs text-text-muted">Kiến trúc sư hệ thống • 6 năm kinh nghiệm</p>
                     </div>
                   </div>
-                  <span className="text-xs font-semibold text-success bg-success-bg px-2 py-0.5 rounded">
-                    Đang rảnh
-                  </span>
                 </div>
 
                 <p className="mt-4 text-xs text-text-secondary leading-relaxed line-clamp-2">
@@ -339,9 +336,6 @@ export default function HomePage() {
                       <p className="text-xs text-text-muted">Chuyên gia Frontend • 5 năm kinh nghiệm</p>
                     </div>
                   </div>
-                  <span className="text-xs font-semibold text-success bg-success-bg px-2 py-0.5 rounded">
-                    Đang rảnh
-                  </span>
                 </div>
 
                 <p className="mt-4 text-xs text-text-secondary leading-relaxed line-clamp-2">
@@ -397,9 +391,6 @@ export default function HomePage() {
                       <p className="text-xs text-text-muted">Chuyên viên Dữ liệu & Backend • 4 năm kinh nghiệm</p>
                     </div>
                   </div>
-                  <span className="text-xs font-semibold text-success bg-success-bg px-2 py-0.5 rounded">
-                    Đang rảnh
-                  </span>
                 </div>
 
                 <p className="mt-4 text-xs text-text-secondary leading-relaxed line-clamp-2">

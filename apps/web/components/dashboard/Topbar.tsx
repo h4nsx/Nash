@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { Bell, Search, Check, ExternalLink, Menu, Sparkles } from 'lucide-react';
+import { Bell, Search, Check, ExternalLink, Menu } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 
 interface NotificationItem {
   id: string;
@@ -16,32 +17,48 @@ interface TopbarProps {
 }
 
 export function Topbar({ onToggleMobileMenu }: TopbarProps) {
+  const router = useRouter();
   const { user } = useAuth();
+  const [searchQuery, setSearchQuery] = useState('');
   const [notifications, setNotifications] = useState<NotificationItem[]>([
     {
       id: 'mock-1',
       type: 'Match',
       content: 'Khách hàng vừa gửi lời mời hợp tác cho dự án "Xây dựng cổng thanh toán trực tuyến".',
       isRead: false,
-      createdAt: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+      createdAt: '2026-11-10T21:00:00.000Z',
     },
     {
       id: 'mock-2',
       type: 'Milestone',
       content: 'Mốc 1 "Thiết kế kiến trúc hệ thống" đã được khách hàng nghiệm thu thành công.',
       isRead: false,
-      createdAt: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
+      createdAt: '2026-11-10T19:00:00.000Z',
     },
     {
       id: 'mock-3',
       type: 'System',
       content: 'Chúc mừng! Bạn đã vượt qua bài thi kiểm tra kỹ năng .NET Backend (Đạt 88/100 điểm).',
       isRead: true,
-      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+      createdAt: '2026-11-09T21:00:00.000Z',
     },
   ]);
   const [isOpen, setIsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  const handleSearchSubmit = (e: FormEvent) => {
+    e.preventDefault();
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    if (user?.role === 'Client') {
+      // Direct client to projects or freelancer search
+      router.push(`/dashboard/client/projects?q=${encodeURIComponent(query)}`);
+    } else {
+      // Freelancer searches available projects or contracts
+      router.push(`/dashboard/projects?q=${encodeURIComponent(query)}`);
+    }
+  };
 
   // Close when clicked outside
   useEffect(() => {
@@ -78,14 +95,16 @@ export function Topbar({ onToggleMobileMenu }: TopbarProps) {
           <Menu className="h-5 w-5" />
         </button>
 
-        <div className="relative w-full max-w-sm hidden sm:block">
+        <form onSubmit={handleSearchSubmit} className="relative w-full max-w-sm hidden sm:block">
           <Search className="absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" />
           <input
             type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Tìm nhanh dự án, hợp đồng, kỹ năng..."
             className="w-full rounded-lg border border-border bg-surface-subtle py-2 pl-9 pr-3 text-xs text-foreground placeholder:text-text-muted focus:border-primary focus:bg-surface focus:outline-none focus:ring-1 focus:ring-primary transition-all shadow-2xs"
           />
-        </div>
+        </form>
       </div>
 
       {/* Topbar Right Utilities */}

@@ -98,4 +98,11 @@ public class UsersController : ControllerBase
 
         return Ok(ApiResponse<object>.Ok(new { Message = "Cập nhật hồ sơ thành công." }));
     }
+
+    [HttpGet("freelancers")]
+    public async Task<ActionResult<ApiResponse<List<PublicFreelancerDto>>>> GetPublicFreelancers([FromQuery] string? skill, [FromQuery] string? search)
+    {
+        var freelancers = await _userService.GetPublicFreelancersAsync(skill, search);
+        return Ok(ApiResponse<List<PublicFreelancerDto>>.Ok(freelancers));
+    }
 }

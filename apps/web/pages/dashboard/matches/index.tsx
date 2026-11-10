@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { apiClient, ApiException } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -7,7 +8,6 @@ import {
   Inbox,
   CheckCircle2,
   Calendar,
-  AlertCircle,
   Clock,
   History,
   X,
@@ -58,6 +58,7 @@ const INVITATION_STATUS: Record<number, { label: string; color: string; bg: stri
 
 export default function MatchesPage() {
   const { user } = useAuth();
+  const isClient = user?.role === 'Client';
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -238,10 +239,12 @@ export default function MatchesPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border">
           <div>
             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-              Lời mời hợp tác & Trao đổi hợp đồng
+              {isClient ? 'Lời mời & Trao đổi hợp đồng với người làm' : 'Lời mời hợp tác & Trao đổi hợp đồng'}
             </h1>
             <p className="mt-0.5 text-xs sm:text-sm text-text-secondary">
-              Xem các dự án khách hàng mời bạn làm việc. Bạn có thể đồng ý ngay để ký hợp đồng hoặc đề xuất lại mức giá và thời gian.
+              {isClient
+                ? 'Theo dõi phản hồi từ ứng viên bạn đã mời, trao đổi mức ngân sách và chốt điều khoản để tạo hợp đồng.'
+                : 'Xem các dự án khách hàng mời bạn làm việc. Bạn có thể đồng ý ngay để ký hợp đồng hoặc đề xuất lại mức giá và thời gian.'}
             </p>
           </div>
 
@@ -470,17 +473,30 @@ export default function MatchesPage() {
             ) : (
               <div className="rounded-xl border border-dashed border-border bg-surface p-12 text-center space-y-3">
                 <Handshake className="h-9 w-9 text-text-muted opacity-40 mx-auto" />
-                <h3 className="text-sm font-bold text-foreground">Hộp thư chưa có lời mời mới</h3>
+                <h3 className="text-sm font-bold text-foreground">
+                  {isClient ? 'Chưa có lời mời nào được gửi' : 'Hộp thư chưa có lời mời mới'}
+                </h3>
                 <p className="text-xs text-text-secondary max-w-sm mx-auto">
-                  Khi khách hàng chọn bạn từ danh sách đề xuất, thông báo và điều khoản thỏa thuận sẽ hiển thị đầy đủ tại đây.
+                  {isClient
+                    ? 'Hãy truy cập trang Quản lý dự án để xem Top 3 Smart Match và gửi lời mời hợp tác tới ứng viên phù hợp.'
+                    : 'Khi khách hàng chọn bạn từ danh sách đề xuất, thông báo và điều khoản thỏa thuận sẽ hiển thị đầy đủ tại đây.'}
                 </p>
                 <div className="pt-1">
-                  <a
-                    href="/dashboard/profile"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-xs font-semibold text-white transition-colors"
-                  >
-                    Làm bài thi kỹ năng để nhận lời mời →
-                  </a>
+                  {isClient ? (
+                    <Link
+                      href="/dashboard/client/projects"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-xs font-semibold text-white transition-colors"
+                    >
+                      Xem các dự án & Top 3 đề xuất →
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/dashboard/profile"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-xs font-semibold text-white transition-colors"
+                    >
+                      Làm bài thi kỹ năng để nhận lời mời →
+                    </Link>
+                  )}
                 </div>
               </div>
             )}

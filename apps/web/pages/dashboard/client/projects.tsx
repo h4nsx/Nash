@@ -3,17 +3,13 @@ import Head from 'next/head';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { apiClient, ApiException } from '@/lib/api/client';
 import {
-  FolderPlus,
   Briefcase,
   Users,
   Send,
   CheckCircle2,
-  AlertCircle,
   Plus,
   ChevronRight,
   Sparkles,
-  Award,
-  ShieldCheck,
   Check
 } from 'lucide-react';
 
@@ -74,28 +70,16 @@ export default function ClientProjectsPage() {
         if (res.data.length > 0 && !selectedProjectId) {
           setSelectedProjectId(res.data[0].id);
         }
+      } else {
+        setProjects([]);
       }
     } catch (err: unknown) {
       if (err instanceof ApiException) {
         setError(err.error.message || 'Lỗi khi tải danh sách dự án.');
       } else {
-        // Fallback demo data
-        setProjects([
-          {
-            id: 'demo-1',
-            title: 'Tái Cấu Trúc Hệ Thống API Thanh Toán Core Banking',
-            description: 'Cần người phát triển .NET 8, Clean Architecture, CQRS và tối ưu SQL Server.',
-            budget: 45000000,
-            deadline: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString(),
-            status: 1,
-            skills: [
-              { skillId: 's1', skillName: '.NET 8 / C#', isRequired: true },
-              { skillId: 's2', skillName: 'Clean Architecture', isRequired: true },
-            ],
-          },
-        ]);
-        setSelectedProjectId('demo-1');
+        setError('Không thể kết nối đến máy chủ.');
       }
+      setProjects([]);
     } finally {
       setLoading(false);
     }
@@ -107,7 +91,10 @@ export default function ClientProjectsPage() {
 
   // Fetch matches when selectedProjectId changes
   useEffect(() => {
-    if (!selectedProjectId) return;
+    if (!selectedProjectId) {
+      setCandidates([]);
+      return;
+    }
 
     const fetchMatches = async () => {
       try {
@@ -115,54 +102,11 @@ export default function ClientProjectsPage() {
         const res = await apiClient<CandidateMatch[]>(`/matches/project/${selectedProjectId}`);
         if (res.success && res.data) {
           setCandidates(res.data);
+        } else {
+          setCandidates([]);
         }
       } catch {
-        // Fallback mock top 3 matches
-        setCandidates([
-          {
-            freelancerId: 'fl-1',
-            freelancerName: 'Trần Văn Minh',
-            totalScore: 94.5,
-            rank: 1,
-            isTopRecommendation: true,
-            explanation: {
-              strengths: [
-                'Đạt 100% điểm bài test năng lực .NET Backend Specialist',
-                'Kinh nghiệm 5 năm xây dựng kiến trúc Clean Architecture',
-                'Mức thù lao mong muốn phù hợp hoàn toàn với ngân sách dự án',
-              ],
-              risks: ['Chỉ sẵn sàng làm việc bán thời gian (25h/tuần)'],
-              summary: 'Ứng viên xuất sắc nhất, có huy hiệu xác thực kỹ năng bắt buộc và điểm số vượt trội.',
-            },
-          },
-          {
-            freelancerId: 'fl-2',
-            freelancerName: 'Nguyễn Hải Đăng',
-            totalScore: 88.0,
-            rank: 2,
-            isTopRecommendation: true,
-            explanation: {
-              strengths: [
-                'Có chứng chỉ SQL Optimization & Clean Architecture',
-                'Sẵn sàng bắt đầu dự án ngay lập tức',
-              ],
-              risks: ['Điểm bài test .NET ở mức trung bình khá (82/100)'],
-              summary: 'Lựa chọn cân bằng, tiến độ khả thi cao.',
-            },
-          },
-          {
-            freelancerId: 'fl-3',
-            freelancerName: 'Lê Hoàng Nam',
-            totalScore: 81.2,
-            rank: 3,
-            isTopRecommendation: true,
-            explanation: {
-              strengths: ['Kinh nghiệm thực chiến phong phú tại ngân hàng'],
-              risks: ['Ngân sách mong muốn cao hơn mức trần 10%'],
-              summary: 'Chuyên môn sâu nhưng cần đàm phán thêm về ngân sách.',
-            },
-          },
-        ]);
+        setCandidates([]);
       } finally {
         setLoadingMatches(false);
       }
@@ -249,6 +193,13 @@ export default function ClientProjectsPage() {
           </button>
         </div>
 
+        {/* Error Alert */}
+        {error && (
+          <div className="rounded-lg bg-danger-bg border border-rose-200 p-3.5 text-xs text-danger">
+            {error}
+          </div>
+        )}
+
         {/* Success Alert */}
         {inviteSuccess && (
           <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3.5 text-xs text-emerald-900 flex items-center justify-between">
@@ -270,7 +221,11 @@ export default function ClientProjectsPage() {
               Dự án đang quản lý ({projects.length})
             </span>
 
-            {projects.length === 0 ? (
+            {loading ? (
+              <div className="rounded-xl border border-border bg-surface p-8 text-center text-xs text-text-muted">
+                Đang tải danh sách dự án...
+              </div>
+            ) : projects.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-surface p-8 text-center space-y-3">
                 <Briefcase className="h-8 w-8 text-text-muted opacity-40 mx-auto" />
                 <div>
@@ -512,7 +467,7 @@ export default function ClientProjectsPage() {
                   disabled={creating}
                   className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors disabled:opacity-50"
                 >
-                  {creating ? 'Đang xuất bản...' : 'Xuất bản & Tìm Chuyên Gia'}
+                  {creating ? 'Đang xuất bản...' : 'Xuất bản & Tìm người làm'}
                 </button>
               </div>
             </form>

@@ -27,6 +27,9 @@ public interface ISkillService
 
     // Admin: Delete skill
     Task<(bool Success, string[] Errors)> DeleteSkillAsync(Guid skillId);
+
+    // Categories overview with live statistics
+    Task<List<SkillCategoryOverviewDto>> GetSkillCategoriesOverviewAsync();
 }
 
 public class SkillDto
@@ -67,4 +70,14 @@ public class VerifiedSkillDto
     public string SkillName { get; set; } = string.Empty;
     public DateTime VerifiedAt { get; set; }
     public DateTime? ExpiredAt { get; set; }
+}
+
+public class SkillCategoryOverviewDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public bool HasTest { get; set; }
+    public int VerifiedFreelancersCount { get; set; }
+    public int ActiveProjectsCount { get; set; }
 }

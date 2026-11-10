@@ -24,6 +24,13 @@ public class SkillsController : ControllerBase
         return Ok(ApiResponse<List<SkillDto>>.Ok(skills));
     }
 
+    [HttpGet("categories-overview")]
+    public async Task<ActionResult<ApiResponse<List<SkillCategoryOverviewDto>>>> GetCategoriesOverview()
+    {
+        var overview = await _skillService.GetSkillCategoriesOverviewAsync();
+        return Ok(ApiResponse<List<SkillCategoryOverviewDto>>.Ok(overview));
+    }
+
     [Authorize(Roles = "Admin")]
     [HttpGet("all")]
     public async Task<ActionResult<ApiResponse<List<SkillDto>>>> GetAllSkills()
