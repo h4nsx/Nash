@@ -12,9 +12,8 @@ import {
   ArrowRight,
   Clock,
   CheckCircle2,
-  AlertCircle,
-  ExternalLink,
-  ChevronRight
+  FolderKanban,
+  Plus
 } from 'lucide-react';
 
 interface Milestone {
@@ -33,6 +32,7 @@ interface Contract {
   projectId: string;
   projectTitle: string;
   clientName: string;
+  freelancerName?: string;
   agreedBudget: number;
   startDate: string;
   endDate: string;
@@ -46,6 +46,8 @@ interface Invitation {
   projectId: string;
   projectTitle: string;
   clientName: string;
+  freelancerName: string;
+  senderId: string;
   status: number; // 0: Draft, 1: Pending, 2: Viewed, 3: Accepted, 4: Countered, 5: Declined, 6: Expired
   expiresAt: string;
   contractDrafts: Array<{
@@ -69,13 +71,25 @@ interface FreelancerProfile {
   yearsOfExperience?: number;
 }
 
+interface ClientProject {
+  id: string;
+  title: string;
+  description: string;
+  budgetMin?: number;
+  budgetMax?: number;
+  status: number;
+  createdAt: string;
+}
+
 export default function DashboardOverviewPage() {
   const { user } = useAuth();
+  const isClient = user?.role === 'Client';
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [invitations, setInvitations] = useState<Invitation[]>([]);
+  const [clientProjects, setClientProjects] = useState<ClientProject[]>([]);
   const [verifiedSkills, setVerifiedSkills] = useState<VerifiedSkill[]>([]);
   const [profile, setProfile] = useState<FreelancerProfile | null>(null);
   const [togglingAvailability, setTogglingAvailability] = useState(false);
@@ -85,30 +99,63 @@ export default function DashboardOverviewPage() {
       if (isManualRefresh) setRefreshing(true);
       else setLoading(true);
 
-      const promises: Promise<any>[] = [
+      const promises: Promise<unknown>[] = [
         apiClient<Contract[]>('/work/contracts'),
         apiClient<Invitation[]>('/handshake/invitations'),
       ];
 
-      if (user?.role === 'Freelancer') {
+      if (isClient) {
+        promises.push(apiClient<ClientProject[]>('/projects/my-projects'));
+      } else {
         promises.push(apiClient<VerifiedSkill[]>('/skills/me/verified'));
         promises.push(apiClient<FreelancerProfile>('/users/me/profile'));
       }
 
-      const results = await Promise.allSettled(promises);
+      const [contractsRes, invitationsRes, thirdRes, fourthRes] = await Promise.allSettled(promises);
 
-      if (results[0].status === 'fulfilled' && results[0].value.success && results[0].value.data) {
-        setContracts(results[0].value.data);
-      }
-      if (results[1].status === 'fulfilled' && results[1].value.success && results[1].value.data) {
-        setInvitations(results[1].value.data);
-      }
-      if (user?.role === 'Freelancer') {
-        if (results[2]?.status === 'fulfilled' && results[2].value.success && results[2].value.data) {
-          setVerifiedSkills(results[2].value.data);
+      if (contractsRes.status === 'fulfilled') {
+        const val = contractsRes.value as { success?: boolean; data?: Contract[] };
+        if (val?.success && val?.data) {
+          setContracts(val.data);
+        } else {
+          setContracts([]);
         }
-        if (results[3]?.status === 'fulfilled' && results[3].value.success && results[3].value.data) {
-          setProfile(results[3].value.data);
+      }
+
+      if (invitationsRes.status === 'fulfilled') {
+        const val = invitationsRes.value as { success?: boolean; data?: Invitation[] };
+        if (val?.success && val?.data) {
+          setInvitations(val.data);
+        } else {
+          setInvitations([]);
+        }
+      }
+
+      if (isClient) {
+        if (thirdRes?.status === 'fulfilled') {
+          const val = thirdRes.value as { success?: boolean; data?: ClientProject[] };
+          if (val?.success && val?.data) {
+            setClientProjects(val.data);
+          } else {
+            setClientProjects([]);
+          }
+        }
+      } else {
+        if (thirdRes?.status === 'fulfilled') {
+          const val = thirdRes.value as { success?: boolean; data?: VerifiedSkill[] };
+          if (val?.success && val?.data) {
+            setVerifiedSkills(val.data);
+          } else {
+            setVerifiedSkills([]);
+          }
+        }
+        if (fourthRes?.status === 'fulfilled') {
+          const val = fourthRes.value as { success?: boolean; data?: FreelancerProfile };
+          if (val?.success && val?.data) {
+            setProfile(val.data);
+          } else {
+            setProfile(null);
+          }
         }
       }
     } catch (err) {
@@ -121,7 +168,7 @@ export default function DashboardOverviewPage() {
 
   useEffect(() => {
     fetchDashboardData();
-  }, []);
+  }, [user?.role]);
 
   const handleToggleAvailability = async () => {
     if (!profile) return;
@@ -149,6 +196,10 @@ export default function DashboardOverviewPage() {
   // Calculations
   const activeContracts = contracts.filter((c) => c.status === 1);
   const pendingInvitations = invitations.filter((i) => i.status === 1 || i.status === 2 || i.status === 4);
+  const submittedMilestones = contracts
+    .flatMap((c) => (c.milestones || []).map((m) => ({ ...m, projectTitle: c.projectTitle })))
+    .filter((m) => m.status === 2);
+
   const totalVolume = contracts
     .filter((c) => c.status === 1 || c.status === 2)
     .reduce((sum, c) => sum + (c.agreedBudget || 0), 0);
@@ -188,12 +239,24 @@ export default function DashboardOverviewPage() {
               Chào {user?.firstName || 'bạn'}! Chúc một ngày làm việc hiệu quả
             </h1>
             <p className="mt-0.5 text-xs sm:text-sm text-text-secondary">
-              Xem nhanh tiến độ công việc, các lời mời mới và bài kiểm tra kỹ năng của bạn.
+              {isClient
+                ? 'Theo dõi các dự án đang tuyển, nghiệm thu các mốc công việc và trao đổi hợp đồng.'
+                : 'Xem nhanh tiến độ công việc, các lời mời mới và bài kiểm tra kỹ năng của bạn.'}
             </p>
           </div>
 
           <div className="flex items-center gap-2.5">
-            {profile && (
+            {isClient && (
+              <Link
+                href="/dashboard/client/projects"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary-hover px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Đăng dự án mới
+              </Link>
+            )}
+
+            {!isClient && profile && (
               <button
                 onClick={handleToggleAvailability}
                 disabled={togglingAvailability}
@@ -217,60 +280,126 @@ export default function DashboardOverviewPage() {
         {/* 4 Core KPI Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
-          <Link
-            href="/dashboard/work"
-            className="rounded-xl border border-border bg-surface p-5 shadow-2xs hover:border-brand-300 transition-colors group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-text-secondary">Việc đang làm</span>
-              <Briefcase className="h-4 w-4 text-primary" />
-            </div>
-            <div className="mt-3 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-foreground font-mono">
-                {loading ? '—' : activeContracts.length}
-              </span>
-              <span className="text-xs text-primary font-medium group-hover:underline">Xem việc →</span>
-            </div>
-            <p className="mt-1 text-2xs text-text-muted">Các dự án đang chạy</p>
-          </Link>
+          {isClient ? (
+            /* Client KPI 1: Projects */
+            <Link
+              href="/dashboard/client/projects"
+              className="rounded-xl border border-border bg-surface p-5 shadow-2xs hover:border-brand-300 transition-colors group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-text-secondary">Dự án đã đăng</span>
+                <FolderKanban className="h-4 w-4 text-primary" />
+              </div>
+              <div className="mt-3 flex items-baseline justify-between">
+                <span className="text-2xl font-bold text-foreground font-mono">
+                  {loading ? '—' : clientProjects.length}
+                </span>
+                <span className="text-xs text-primary font-medium group-hover:underline">Quản lý →</span>
+              </div>
+              <p className="mt-1 text-2xs text-text-muted">Đang mở tuyển hoặc đang chạy</p>
+            </Link>
+          ) : (
+            /* Freelancer KPI 1: Active Jobs */
+            <Link
+              href="/dashboard/work"
+              className="rounded-xl border border-border bg-surface p-5 shadow-2xs hover:border-brand-300 transition-colors group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-text-secondary">Việc đang làm</span>
+                <Briefcase className="h-4 w-4 text-primary" />
+              </div>
+              <div className="mt-3 flex items-baseline justify-between">
+                <span className="text-2xl font-bold text-foreground font-mono">
+                  {loading ? '—' : activeContracts.length}
+                </span>
+                <span className="text-xs text-primary font-medium group-hover:underline">Xem việc →</span>
+              </div>
+              <p className="mt-1 text-2xs text-text-muted">Các dự án đang chạy</p>
+            </Link>
+          )}
 
-          <Link
-            href="/dashboard/matches"
-            className="rounded-xl border border-border bg-surface p-5 shadow-2xs hover:border-brand-300 transition-colors group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-text-secondary">Lời mời mới</span>
-              <Handshake className="h-4 w-4 text-primary" />
-            </div>
-            <div className="mt-3 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-foreground font-mono">
-                {loading ? '—' : pendingInvitations.length}
-              </span>
-              <span className="text-xs text-primary font-medium group-hover:underline">Mở xem →</span>
-            </div>
-            <p className="mt-1 text-2xs text-text-muted">Khách hàng chọn bạn</p>
-          </Link>
+          {isClient ? (
+            /* Client KPI 2: Active Contracts */
+            <Link
+              href="/dashboard/work"
+              className="rounded-xl border border-border bg-surface p-5 shadow-2xs hover:border-brand-300 transition-colors group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-text-secondary">Hợp đồng đang chạy</span>
+                <Briefcase className="h-4 w-4 text-primary" />
+              </div>
+              <div className="mt-3 flex items-baseline justify-between">
+                <span className="text-2xl font-bold text-foreground font-mono">
+                  {loading ? '—' : activeContracts.length}
+                </span>
+                <span className="text-xs text-primary font-medium group-hover:underline">Chi tiết →</span>
+              </div>
+              <p className="mt-1 text-2xs text-text-muted">Đang theo dõi các mốc</p>
+            </Link>
+          ) : (
+            /* Freelancer KPI 2: Invitations */
+            <Link
+              href="/dashboard/matches"
+              className="rounded-xl border border-border bg-surface p-5 shadow-2xs hover:border-brand-300 transition-colors group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-text-secondary">Lời mời mới</span>
+                <Handshake className="h-4 w-4 text-primary" />
+              </div>
+              <div className="mt-3 flex items-baseline justify-between">
+                <span className="text-2xl font-bold text-foreground font-mono">
+                  {loading ? '—' : pendingInvitations.length}
+                </span>
+                <span className="text-xs text-primary font-medium group-hover:underline">Mở xem →</span>
+              </div>
+              <p className="mt-1 text-2xs text-text-muted">Khách hàng chọn bạn</p>
+            </Link>
+          )}
 
-          <Link
-            href="/dashboard/profile"
-            className="rounded-xl border border-border bg-surface p-5 shadow-2xs hover:border-brand-300 transition-colors group"
-          >
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-text-secondary">Kỹ năng đã đạt</span>
-              <Award className="h-4 w-4 text-success" />
-            </div>
-            <div className="mt-3 flex items-baseline justify-between">
-              <span className="text-2xl font-bold text-foreground font-mono">
-                {loading ? '—' : verifiedSkills.length}
-              </span>
-              <span className="text-xs text-primary font-medium group-hover:underline">Thi thêm →</span>
-            </div>
-            <p className="mt-1 text-2xs text-text-muted">Đã kiểm tra tay nghề</p>
-          </Link>
+          {isClient ? (
+            /* Client KPI 3: Milestones Waiting Review */
+            <Link
+              href="/dashboard/work"
+              className="rounded-xl border border-border bg-surface p-5 shadow-2xs hover:border-brand-300 transition-colors group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-text-secondary">Mốc chờ duyệt</span>
+                <Clock className="h-4 w-4 text-warning" />
+              </div>
+              <div className="mt-3 flex items-baseline justify-between">
+                <span className="text-2xl font-bold text-foreground font-mono">
+                  {loading ? '—' : submittedMilestones.length}
+                </span>
+                <span className="text-xs text-primary font-medium group-hover:underline">Nghiệm thu →</span>
+              </div>
+              <p className="mt-1 text-2xs text-text-muted">Đã nộp bài cần kiểm tra</p>
+            </Link>
+          ) : (
+            /* Freelancer KPI 3: Verified Skills */
+            <Link
+              href="/dashboard/profile"
+              className="rounded-xl border border-border bg-surface p-5 shadow-2xs hover:border-brand-300 transition-colors group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-text-secondary">Kỹ năng đã đạt</span>
+                <Award className="h-4 w-4 text-success" />
+              </div>
+              <div className="mt-3 flex items-baseline justify-between">
+                <span className="text-2xl font-bold text-foreground font-mono">
+                  {loading ? '—' : verifiedSkills.length}
+                </span>
+                <span className="text-xs text-primary font-medium group-hover:underline">Thi thêm →</span>
+              </div>
+              <p className="mt-1 text-2xs text-text-muted">Đã kiểm tra tay nghề</p>
+            </Link>
+          )}
 
+          {/* KPI 4: Financial volume */}
           <div className="rounded-xl border border-border bg-surface p-5 shadow-2xs">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-text-secondary">Thu nhập dự kiến</span>
+              <span className="text-xs font-medium text-text-secondary">
+                {isClient ? 'Ngân sách đang thực hiện' : 'Thu nhập dự kiến'}
+              </span>
               <span className="text-xs font-mono font-bold text-text-muted">VND</span>
             </div>
             <div className="mt-3">
@@ -278,7 +407,9 @@ export default function DashboardOverviewPage() {
                 {loading ? '—' : formatCurrency(totalVolume)}
               </span>
             </div>
-            <p className="mt-1 text-2xs text-text-muted">Từ các hợp đồng đã ký</p>
+            <p className="mt-1 text-2xs text-text-muted">
+              {isClient ? 'Tổng ngân sách các hợp đồng' : 'Từ các hợp đồng đã ký'}
+            </p>
           </div>
 
         </div>
@@ -286,11 +417,11 @@ export default function DashboardOverviewPage() {
         {/* Main Content Sections */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-          {/* Active Work & Milestones (7 cols) */}
+          {/* Left Column (7 cols): Active Contracts / Projects */}
           <div className="lg:col-span-7 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">
-                Hợp đồng đang thực hiện ({activeContracts.length})
+                {isClient ? `Hợp đồng đang thực hiện (${activeContracts.length})` : `Hợp đồng đang thực hiện (${activeContracts.length})`}
               </h2>
               <Link href="/dashboard/work" className="text-xs font-semibold text-primary hover:underline">
                 Xem tất cả
@@ -306,16 +437,28 @@ export default function DashboardOverviewPage() {
                 <Briefcase className="mx-auto h-8 w-8 text-text-muted opacity-50" />
                 <h3 className="mt-2 text-sm font-bold text-foreground">Chưa có hợp đồng nào đang chạy</h3>
                 <p className="mt-1 text-xs text-text-secondary max-w-sm mx-auto">
-                  Hãy hoàn thành các bài kiểm tra kỹ năng để nhận được lời mời ghép nối từ khách hàng.
+                  {isClient
+                    ? 'Hãy tạo dự án và chọn người phù hợp từ Top 3 Smart Match để bắt đầu hợp đồng.'
+                    : 'Hãy hoàn thành các bài kiểm tra kỹ năng để nhận được lời mời ghép nối từ khách hàng.'}
                 </p>
                 <div className="mt-4">
-                  <Link
-                    href="/dashboard/profile"
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-xs font-semibold text-white transition-colors"
-                  >
-                    Kiểm tra năng lực ngay
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
+                  {isClient ? (
+                    <Link
+                      href="/dashboard/client/projects"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-xs font-semibold text-white transition-colors"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      Đăng dự án ngay
+                    </Link>
+                  ) : (
+                    <Link
+                      href="/dashboard/profile"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-xs font-semibold text-white transition-colors"
+                    >
+                      Kiểm tra năng lực ngay
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Link>
+                  )}
                 </div>
               </div>
             ) : (
@@ -338,7 +481,12 @@ export default function DashboardOverviewPage() {
                             {contract.projectTitle}
                           </Link>
                           <div className="mt-1 flex items-center gap-3 text-xs text-text-muted">
-                            <span>Khách hàng: <strong className="text-foreground">{contract.clientName}</strong></span>
+                            <span>
+                              {isClient ? 'Người làm: ' : 'Khách hàng: '}
+                              <strong className="text-foreground">
+                                {isClient ? (contract.freelancerName || 'Freelancer') : contract.clientName}
+                              </strong>
+                            </span>
                             <span>•</span>
                             <span className="font-mono text-foreground font-semibold">{formatCurrency(contract.agreedBudget)}</span>
                           </div>
@@ -365,11 +513,11 @@ export default function DashboardOverviewPage() {
             )}
           </div>
 
-          {/* Pending Invitations & Smart Match (5 cols) */}
+          {/* Right Column (5 cols): Invitations / Fast Action */}
           <div className="lg:col-span-5 space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">
-                Lời mời mới ({pendingInvitations.length})
+                {isClient ? `Lời mời đã gửi (${pendingInvitations.length})` : `Lời mời mới (${pendingInvitations.length})`}
               </h2>
               <Link href="/dashboard/matches" className="text-xs font-semibold text-primary hover:underline">
                 Xem tất cả
@@ -378,14 +526,18 @@ export default function DashboardOverviewPage() {
 
             {loading ? (
               <div className="rounded-xl border border-border bg-surface p-8 text-center text-xs text-text-muted">
-                Đang tải lời mời...
+                Đang tải dữ liệu...
               </div>
             ) : pendingInvitations.length === 0 ? (
               <div className="rounded-xl border border-border bg-surface p-8 text-center">
                 <Handshake className="mx-auto h-8 w-8 text-text-muted opacity-50" />
-                <h3 className="mt-2 text-sm font-bold text-foreground">Không có lời mời nào đang chờ</h3>
+                <h3 className="mt-2 text-sm font-bold text-foreground">
+                  {isClient ? 'Chưa có lời mời nào đang chờ' : 'Không có lời mời nào đang chờ'}
+                </h3>
                 <p className="mt-1 text-xs text-text-secondary max-w-xs mx-auto">
-                  Khi khách hàng chọn bạn từ Top 3 Smart Match, lời mời trực tiếp sẽ hiển thị tại đây.
+                  {isClient
+                    ? 'Khi bạn gửi lời mời hợp tác tới các ứng viên trong Top 3, trạng thái phản hồi sẽ hiển thị ở đây.'
+                    : 'Khi khách hàng chọn bạn từ Top 3 Smart Match, lời mời trực tiếp sẽ hiển thị tại đây.'}
                 </p>
               </div>
             ) : (
@@ -404,7 +556,11 @@ export default function DashboardOverviewPage() {
                             {invitation.projectTitle}
                           </h4>
                           <p className="text-2xs text-text-muted mt-0.5">
-                            Gửi bởi: <strong className="text-foreground">{invitation.clientName}</strong>
+                            {isClient ? (
+                              <>Gửi tới: <strong className="text-foreground">{invitation.freelancerName}</strong></>
+                            ) : (
+                              <>Gửi bởi: <strong className="text-foreground">{invitation.clientName}</strong></>
+                            )}
                           </p>
                         </div>
                         <span className="text-2xs font-semibold px-2 py-0.5 rounded bg-brand-50 text-primary border border-brand-200">
@@ -420,7 +576,7 @@ export default function DashboardOverviewPage() {
                           href="/dashboard/matches"
                           className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline"
                         >
-                          Đàm phán & Xem →
+                          {isClient ? 'Xem đàm phán →' : 'Đàm phán & Xem →'}
                         </Link>
                       </div>
                     </div>
@@ -429,35 +585,76 @@ export default function DashboardOverviewPage() {
               </div>
             )}
 
-            {/* Verified Skills Quick Glance */}
-            <div className="rounded-xl border border-border bg-surface p-5 shadow-2xs">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                  Chứng chỉ năng lực ({verifiedSkills.length})
-                </span>
-                <Link href="/dashboard/profile" className="text-xs font-semibold text-primary hover:underline">
-                  Làm bài test
-                </Link>
-              </div>
-
-              {verifiedSkills.length === 0 ? (
-                <p className="mt-3 text-xs text-text-secondary">
-                  Bạn chưa có chứng nhận kỹ năng nào. Làm bài test để tăng 65% điểm tương thích trong Smart Match!
-                </p>
-              ) : (
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {verifiedSkills.map((vs) => (
-                    <span
-                      key={vs.id}
-                      className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-surface-subtle border border-border text-foreground font-medium"
-                    >
-                      <CheckCircle2 className="h-3 w-3 text-success" />
-                      {vs.skillName}
-                    </span>
-                  ))}
+            {/* Quick Helper Card based on Role */}
+            {isClient ? (
+              <div className="rounded-xl border border-border bg-surface p-5 shadow-2xs">
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    Dự án của bạn ({clientProjects.length})
+                  </span>
+                  <Link href="/dashboard/client/projects" className="text-xs font-semibold text-primary hover:underline">
+                    Xem Top 3
+                  </Link>
                 </div>
-              )}
-            </div>
+
+                {clientProjects.length === 0 ? (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs text-text-secondary">
+                      Bạn chưa đăng dự án nào. Đăng dự án ngay để hệ thống tự động tìm và so sánh 3 ứng viên có tay nghề kiểm định tốt nhất!
+                    </p>
+                    <Link
+                      href="/dashboard/client/projects"
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline pt-1"
+                    >
+                      <Plus className="h-3.5 w-3.5" /> Tạo dự án mới
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="mt-3 space-y-2">
+                    {clientProjects.slice(0, 3).map((cp) => (
+                      <Link
+                        key={cp.id}
+                        href="/dashboard/client/projects"
+                        className="flex items-center justify-between p-2.5 rounded-lg border border-border hover:bg-surface-subtle transition-colors text-xs"
+                      >
+                        <span className="font-semibold text-foreground truncate max-w-[200px]">{cp.title}</span>
+                        <span className="text-2xs text-primary font-medium shrink-0">Xem ứng viên →</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              /* Verified Skills Quick Glance for Freelancers */
+              <div className="rounded-xl border border-border bg-surface p-5 shadow-2xs">
+                <div className="flex items-center justify-between pb-3 border-b border-border">
+                  <span className="text-xs font-bold uppercase tracking-wider text-foreground">
+                    Chứng chỉ năng lực ({verifiedSkills.length})
+                  </span>
+                  <Link href="/dashboard/profile" className="text-xs font-semibold text-primary hover:underline">
+                    Làm bài test
+                  </Link>
+                </div>
+
+                {verifiedSkills.length === 0 ? (
+                  <p className="mt-3 text-xs text-text-secondary">
+                    Bạn chưa có chứng nhận kỹ năng nào. Làm bài test để tăng 65% điểm tương thích trong Smart Match!
+                  </p>
+                ) : (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {verifiedSkills.map((vs) => (
+                      <span
+                        key={vs.id}
+                        className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-surface-subtle border border-border text-foreground font-medium"
+                      >
+                        <CheckCircle2 className="h-3 w-3 text-success" />
+                        {vs.skillName}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
           </div>
 

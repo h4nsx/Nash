@@ -138,7 +138,6 @@ public class ProjectsController : ControllerBase
         return Ok(ApiResponse<List<ProjectDto>>.Ok(projects));
     }
 
-    [Authorize]
     [HttpGet]
     public async Task<ActionResult<ApiResponse<List<ProjectDto>>>> GetPublishedProjects()
     {
@@ -146,7 +145,6 @@ public class ProjectsController : ControllerBase
         return Ok(ApiResponse<List<ProjectDto>>.Ok(projects));
     }
 
-    [Authorize]
     [HttpGet("{projectId}")]
     public async Task<ActionResult<ApiResponse<ProjectDto>>> GetProjectById(Guid projectId)
     {

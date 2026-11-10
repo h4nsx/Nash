@@ -218,4 +218,36 @@ public class SkillService : ISkillService
             })
             .ToListAsync();
     }
+
+    public async Task<List<SkillCategoryOverviewDto>> GetSkillCategoriesOverviewAsync()
+    {
+        var skills = await _context.Skills
+            .Include(s => s.Tests)
+            .Where(s => s.IsActive)
+            .OrderBy(s => s.Name)
+            .ToListAsync();
+
+        var verifiedCounts = await _context.VerifiedSkills
+            .Where(vs => vs.Status == VerifiedSkillStatus.Verified)
+            .GroupBy(vs => vs.SkillId)
+            .Select(g => new { SkillId = g.Key, Count = g.Select(x => x.UserId).Distinct().Count() })
+            .ToDictionaryAsync(x => x.SkillId, x => x.Count);
+
+        var projectCounts = await _context.ProjectSkillRequirements
+            .Include(psr => psr.Project)
+            .Where(psr => psr.Project.Status == ProjectStatus.Published || psr.Project.Status == ProjectStatus.InProgress)
+            .GroupBy(psr => psr.SkillId)
+            .Select(g => new { SkillId = g.Key, Count = g.Select(x => x.ProjectId).Distinct().Count() })
+            .ToDictionaryAsync(x => x.SkillId, x => x.Count);
+
+        return skills.Select(s => new SkillCategoryOverviewDto
+        {
+            Id = s.Id,
+            Name = s.Name,
+            Description = s.Description,
+            HasTest = s.Tests.Any(),
+            VerifiedFreelancersCount = verifiedCounts.TryGetValue(s.Id, out var vc) ? vc : 0,
+            ActiveProjectsCount = projectCounts.TryGetValue(s.Id, out var pc) ? pc : 0
+        }).ToList();
+    }
 }

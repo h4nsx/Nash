@@ -183,7 +183,7 @@ public class MatchEngineService : IMatchEngineService
                 FreelancerName = m.Freelancer.FirstName + " " + m.Freelancer.LastName,
                 Score = m.Score,
                 MatchVersion = m.MatchVersion,
-                Reasons = string.IsNullOrEmpty(m.ReasonsJson) ? new List<string>() : JsonSerializer.Deserialize<List<string>>(m.ReasonsJson, (JsonSerializerOptions)null),
+                Reasons = string.IsNullOrEmpty(m.ReasonsJson) ? new List<string>() : (JsonSerializer.Deserialize<List<string>>(m.ReasonsJson, (JsonSerializerOptions?)null) ?? new List<string>()),
                 Status = m.Status
             })
             .ToListAsync();

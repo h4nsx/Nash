@@ -138,4 +138,45 @@ public class UserService : IUserService
         await _context.SaveChangesAsync();
         return (true, Array.Empty<string>());
     }
+
+    public async Task<List<PublicFreelancerDto>> GetPublicFreelancersAsync(string? skill = null, string? search = null)
+    {
+        var query = _context.DomainUsers
+            .Include(u => u.FreelancerProfile)
+            .Include(u => u.VerifiedSkills)
+                .ThenInclude(vs => vs.Skill)
+            .Include(u => u.ContractsAsFreelancer)
+            .Where(u => u.Role == Role.Freelancer && (u.FreelancerProfile == null || u.FreelancerProfile.IsAvailable));
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var searchLower = search.Trim().ToLower();
+            query = query.Where(u =>
+                u.FirstName.ToLower().Contains(searchLower) ||
+                u.LastName.ToLower().Contains(searchLower) ||
+                (u.FreelancerProfile != null && u.FreelancerProfile.Bio.ToLower().Contains(searchLower)) ||
+                u.VerifiedSkills.Any(vs => vs.Skill.Name.ToLower().Contains(searchLower)));
+        }
+
+        if (!string.IsNullOrWhiteSpace(skill) && skill != "all")
+        {
+            var skillLower = skill.Trim().ToLower();
+            query = query.Where(u => u.VerifiedSkills.Any(vs => vs.Skill.Name.ToLower() == skillLower));
+        }
+
+        var users = await query.ToListAsync();
+
+        return users.Select(u => new PublicFreelancerDto
+        {
+            Id = u.Id,
+            FirstName = u.FirstName,
+            LastName = u.LastName,
+            HourlyRate = u.FreelancerProfile?.HourlyRate,
+            YearsOfExperience = u.FreelancerProfile?.YearsOfExperience,
+            IsAvailable = u.FreelancerProfile?.IsAvailable ?? true,
+            Bio = u.FreelancerProfile?.Bio ?? string.Empty,
+            VerifiedSkills = u.VerifiedSkills.Select(vs => vs.Skill.Name).Distinct().ToList(),
+            CompletedProjectsCount = u.ContractsAsFreelancer.Count(c => c.Status == ContractStatus.Completed)
+        }).ToList();
+    }
 }
