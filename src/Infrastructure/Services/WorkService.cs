@@ -251,4 +251,124 @@ public class WorkService : IWorkService
 
         return (true, Array.Empty<string>());
     }
+
+    public async Task<List<ContractDto>> GetUserContractsAsync(string userId, string? role = null)
+    {
+        var userGuid = Guid.Parse(userId);
+        var query = _context.Contracts
+            .Include(c => c.Project)
+                .ThenInclude(p => p.Client)
+            .Include(c => c.Freelancer)
+            .Include(c => c.Milestones)
+            .Include(c => c.Reviews)
+            .AsQueryable();
+
+        if (string.Equals(role, "Freelancer", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(c => c.FreelancerId == userGuid);
+        }
+        else if (string.Equals(role, "Client", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(c => c.Project.ClientId == userGuid);
+        }
+        else
+        {
+            query = query.Where(c => c.FreelancerId == userGuid || c.Project.ClientId == userGuid);
+        }
+
+        var contracts = await query
+            .OrderByDescending(c => c.CreatedAt)
+            .ToListAsync();
+
+        return contracts.Select(MapToContractDto).ToList();
+    }
+
+    public async Task<ContractDto?> GetContractByIdAsync(Guid contractId, string userId)
+    {
+        var userGuid = Guid.Parse(userId);
+        var contract = await _context.Contracts
+            .Include(c => c.Project)
+                .ThenInclude(p => p.Client)
+            .Include(c => c.Freelancer)
+            .Include(c => c.Milestones)
+            .Include(c => c.Reviews)
+            .FirstOrDefaultAsync(c => c.Id == contractId && (c.FreelancerId == userGuid || c.Project.ClientId == userGuid));
+
+        return contract == null ? null : MapToContractDto(contract);
+    }
+
+    public async Task<List<MilestoneDto>> GetContractMilestonesAsync(Guid contractId, string userId)
+    {
+        var userGuid = Guid.Parse(userId);
+        var contract = await _context.Contracts
+            .Include(c => c.Milestones)
+            .Include(c => c.Project)
+            .FirstOrDefaultAsync(c => c.Id == contractId && (c.FreelancerId == userGuid || c.Project.ClientId == userGuid));
+
+        if (contract == null) return new List<MilestoneDto>();
+
+        return contract.Milestones
+            .OrderBy(m => m.DueDate)
+            .Select(m => new MilestoneDto
+            {
+                Id = m.Id,
+                ContractId = m.ContractId,
+                Title = m.Title,
+                Description = m.Description,
+                Amount = m.Amount,
+                DueDate = m.DueDate,
+                Status = m.Status,
+                SubmissionNotes = m.SubmissionNotes,
+                FeedbackNotes = m.FeedbackNotes,
+                CreatedAt = m.CreatedAt,
+                UpdatedAt = m.UpdatedAt
+            })
+            .ToList();
+    }
+
+    private static ContractDto MapToContractDto(Contract c)
+    {
+        return new ContractDto
+        {
+            Id = c.Id,
+            ProjectId = c.ProjectId,
+            ProjectTitle = c.Project?.Title ?? string.Empty,
+            ProjectDescription = c.Project?.Description ?? string.Empty,
+            ClientId = c.Project?.ClientId ?? Guid.Empty,
+            ClientName = c.Project?.Client != null ? $"{c.Project.Client.LastName} {c.Project.Client.FirstName}".Trim() : string.Empty,
+            FreelancerId = c.FreelancerId,
+            FreelancerName = c.Freelancer != null ? $"{c.Freelancer.LastName} {c.Freelancer.FirstName}".Trim() : string.Empty,
+            AgreedBudget = c.AgreedBudget,
+            StartDate = c.StartDate,
+            EndDate = c.EndDate,
+            Status = c.Status,
+            CreatedAt = c.CreatedAt,
+            Milestones = c.Milestones
+                .OrderBy(m => m.DueDate)
+                .Select(m => new MilestoneDto
+                {
+                    Id = m.Id,
+                    ContractId = m.ContractId,
+                    Title = m.Title,
+                    Description = m.Description,
+                    Amount = m.Amount,
+                    DueDate = m.DueDate,
+                    Status = m.Status,
+                    SubmissionNotes = m.SubmissionNotes,
+                    FeedbackNotes = m.FeedbackNotes,
+                    CreatedAt = m.CreatedAt,
+                    UpdatedAt = m.UpdatedAt
+                }).ToList(),
+            Reviews = c.Reviews
+                .Select(r => new ReviewItemDto
+                {
+                    Id = r.Id,
+                    ReviewerId = r.ReviewerId,
+                    RevieweeId = r.RevieweeId,
+                    Rating = r.Rating,
+                    Comment = r.Comment,
+                    CreatedAt = r.CreatedAt
+                }).ToList()
+        };
+    }
 }

@@ -55,10 +55,21 @@ export async function apiClient<T>(
     } catch {
       errorData = {
         statusCode: response.status,
-        code: 'HTTP_ERROR',
-        message: response.statusText || 'An unexpected error occurred.',
+        code: response.status === 401 ? 'UNAUTHORIZED' : 'HTTP_ERROR',
+        message: response.status === 401 ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.' : (response.statusText || 'An unexpected error occurred.'),
       };
     }
+
+    // Auto logout & redirect on 401 Unauthorized in client-side navigation
+    if (response.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('nash_user');
+      // Only redirect if not already on login or register pages
+      const pathname = window.location.pathname;
+      if (pathname !== '/login' && pathname !== '/register' && pathname !== '/forgot-password' && pathname !== '/reset-password') {
+        window.location.href = `/login?session_expired=true&redirect=${encodeURIComponent(pathname)}`;
+      }
+    }
+
     throw new ApiException(errorData);
   }
 

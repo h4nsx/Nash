@@ -19,14 +19,15 @@ const geistMono = Geist_Mono({
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   
-  // Do not show Navbar/Footer on Auth or Admin pages
+  // Do not show Navbar/Footer on Auth, Admin, or Dashboard pages
   const isAuthPage = router.pathname.startsWith('/login') || router.pathname.startsWith('/register');
   const isAdminPage = router.pathname.startsWith('/admin');
-  const hideLayout = isAuthPage || isAdminPage;
+  const isDashboardPage = router.pathname.startsWith('/dashboard');
+  const hideLayout = isAuthPage || isAdminPage || isDashboardPage;
 
   return (
     <AuthProvider>
-      <div className={`${geistSans.variable} ${geistMono.variable} font-sans min-h-screen flex flex-col bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 antialiased`}>
+      <div className={`${geistSans.variable} ${geistMono.variable} font-sans min-h-screen flex flex-col bg-background text-foreground antialiased`}>
         {!hideLayout && <Navbar />}
         <main className="flex-1 w-full">
           <Component {...pageProps} />

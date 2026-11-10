@@ -33,8 +33,11 @@ export default function LoginPage() {
         // Save to global auth state
         login(res.data);
         
-        // Redirect based on role
-        if (res.data.role === 'Admin') {
+        // Redirect based on redirect query or role
+        const redirectUrl = typeof router.query.redirect === 'string' ? router.query.redirect : null;
+        if (redirectUrl && redirectUrl.startsWith('/')) {
+          router.push(redirectUrl);
+        } else if (res.data.role === 'Admin') {
           router.push('/admin');
         } else {
           router.push('/dashboard');
@@ -68,16 +71,23 @@ export default function LoginPage() {
       <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 shadow-xl shadow-zinc-200/50 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-none">
         
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-900 font-mono text-xl font-bold text-white shadow dark:bg-white dark:text-zinc-900">
-            N
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
-            Chào mừng trở lại
+          <Link href="/" className="inline-block text-3xl font-black tracking-tight text-foreground mb-2">
+            NASH
+          </Link>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
+            Đăng nhập
           </h1>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Đăng nhập vào tài khoản NASH của bạn
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            Truy cập tài khoản NASH của bạn
           </p>
         </div>
+
+        {router.query.session_expired && (
+          <div className="mb-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-xs text-amber-900">
+            <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-amber-600" />
+            <p className="font-medium">Phiên làm việc đã hết hạn sau một thời gian không hoạt động. Vui lòng đăng nhập lại để tiếp tục.</p>
+          </div>
+        )}
 
         {error && (
           <div className="mb-6 flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300">
@@ -106,7 +116,7 @@ export default function LoginPage() {
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
                 Mật khẩu
               </label>
-              <Link href="#" className="text-xs font-medium text-emerald-600 hover:text-emerald-500 dark:text-emerald-400">
+              <Link href="/forgot-password" className="text-xs font-semibold text-primary hover:text-primary-hover">
                 Quên mật khẩu?
               </Link>
             </div>

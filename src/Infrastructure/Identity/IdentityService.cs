@@ -79,18 +79,71 @@ public class IdentityService : IIdentityService
                 return (false, null, new[] { "Không tìm thấy hồ sơ người dùng." });
             }
 
-            var authResponse = new AuthResponse
-            {
-                Email = domainUser.Email,
-                Role = domainUser.Role.ToString(),
-                FirstName = domainUser.FirstName,
-                LastName = domainUser.LastName,
-                Token = _jwtService.GenerateToken(domainUser.IdentityId, domainUser.Email, domainUser.FirstName, domainUser.LastName, domainUser.Role)
-            };
+        var authResponse = new AuthResponse
+        {
+            Email = domainUser.Email,
+            Role = domainUser.Role.ToString(),
+            FirstName = domainUser.FirstName,
+            LastName = domainUser.LastName,
+            Token = _jwtService.GenerateToken(domainUser.Id.ToString(), domainUser.Email, domainUser.FirstName, domainUser.LastName, domainUser.Role)
+        };
 
             return (true, authResponse, Array.Empty<string>());
         }
 
         return (false, null, new[] { "Email hoặc mật khẩu không chính xác." });
+    }
+
+    public async Task<(bool Success, string? ResetToken, string[] Errors)> ForgotPasswordAsync(string email)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user == null)
+        {
+            // Return success even if not found to avoid user enumeration
+            return (true, null, Array.Empty<string>());
+        }
+
+        var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+        return (true, token, Array.Empty<string>());
+    }
+
+    public async Task<(bool Success, string[] Errors)> ResetPasswordAsync(string email, string token, string newPassword)
+    {
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user == null)
+        {
+            return (false, new[] { "Không tìm thấy người dùng." });
+        }
+
+        var result = await _userManager.ResetPasswordAsync(user, token, newPassword);
+        if (result.Succeeded)
+        {
+            return (true, Array.Empty<string>());
+        }
+
+        return (false, result.Errors.Select(e => e.Description).ToArray());
+    }
+
+    public async Task<(bool Success, string[] Errors)> ChangePasswordAsync(Guid userId, string currentPassword, string newPassword)
+    {
+        var domainUser = await _context.DomainUsers.FindAsync(userId);
+        if (domainUser == null)
+        {
+            return (false, new[] { "Không tìm thấy hồ sơ người dùng." });
+        }
+
+        var appUser = await _userManager.FindByIdAsync(domainUser.IdentityId);
+        if (appUser == null)
+        {
+            return (false, new[] { "Không tìm thấy tài khoản người dùng." });
+        }
+
+        var result = await _userManager.ChangePasswordAsync(appUser, currentPassword, newPassword);
+        if (result.Succeeded)
+        {
+            return (true, Array.Empty<string>());
+        }
+
+        return (false, result.Errors.Select(e => e.Description).ToArray());
     }
 }
