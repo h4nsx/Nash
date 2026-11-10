@@ -1,78 +1,119 @@
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { 
-  LayoutDashboard, 
-  Briefcase, 
-  FolderKanban, 
-  UserCircle, 
-  Settings, 
+import {
+  LayoutDashboard,
+  Briefcase,
+  FolderKanban,
+  Award,
+  Settings,
   Handshake,
-  LogOut
+  LogOut,
+  X,
+  User,
+  ShieldCheck
 } from 'lucide-react';
 
-export function Sidebar() {
+interface SidebarProps {
+  onCloseMobile?: () => void;
+}
+
+export function Sidebar({ onCloseMobile }: SidebarProps) {
   const router = useRouter();
   const { user, logout } = useAuth();
-  
-  // Navigation for Freelancer (Chuyên Gia)
-  const freelancerLinks = [
-    { name: 'Tổng quan', href: '/dashboard', icon: LayoutDashboard },
-    { name: 'Công việc của tôi', href: '/dashboard/work', icon: Briefcase },
-    { name: 'Lời mời & Ghép nối', href: '/dashboard/matches', icon: Handshake },
-    { name: 'Dự án đã lưu', href: '/dashboard/projects', icon: FolderKanban },
-    { name: 'Hồ sơ chuyên gia', href: '/dashboard/profile', icon: UserCircle },
-    { name: 'Cài đặt', href: '/dashboard/settings', icon: Settings },
-  ];
 
-  // In the future, we can add clientLinks and conditionally render based on user?.role
-  const links = freelancerLinks;
+  // Navigation items based on role
+  const isClient = user?.role === 'Client';
+
+  const links = isClient
+    ? [
+        { name: 'Tổng quan', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Dự án & Tìm người làm', href: '/dashboard/client/projects', icon: FolderKanban },
+        { name: 'Hợp đồng & Nghiệm thu', href: '/dashboard/work', icon: Briefcase },
+        { name: 'Lời mời & Bắt tay', href: '/dashboard/matches', icon: Handshake },
+        { name: 'Cài đặt tài khoản', href: '/dashboard/settings', icon: Settings },
+      ]
+    : [
+        { name: 'Tổng quan', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Việc đang làm & Mốc nộp', href: '/dashboard/work', icon: Briefcase },
+        { name: 'Lời mời nhận được', href: '/dashboard/matches', icon: Handshake },
+        { name: 'Tìm việc & Xem dự án', href: '/dashboard/projects', icon: FolderKanban },
+        { name: 'Hồ sơ cá nhân', href: '/dashboard/profile/edit', icon: User },
+        { name: 'Bài thi kỹ năng', href: '/dashboard/profile', icon: Award },
+        { name: 'Cài đặt tài khoản', href: '/dashboard/settings', icon: Settings },
+      ];
 
   return (
-    <div className="hidden md:flex h-screen w-64 flex-col border-r border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="flex h-16 items-center border-b border-zinc-200 px-6 dark:border-zinc-800">
-        <Link href="/" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-900 font-mono font-bold text-white shadow dark:bg-white dark:text-zinc-900">
-            N
-          </div>
-          <span className="text-lg font-bold tracking-tight text-zinc-900 dark:text-white">NASH</span>
+    <aside className="flex h-full w-64 flex-col border-r border-border bg-surface select-none">
+      {/* Brand Header */}
+      <div className="flex h-16 items-center justify-between px-5 border-b border-border">
+        <Link href="/" className="text-xl font-black tracking-tight text-foreground hover:text-primary transition-colors">
+          NASH
         </Link>
+
+        {/* Mobile close button */}
+        {onCloseMobile && (
+          <button
+            onClick={onCloseMobile}
+            className="rounded-lg p-1.5 text-text-muted hover:text-foreground hover:bg-surface-subtle md:hidden"
+            aria-label="Đóng thanh điều hướng"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        )}
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto p-4">
+      {/* Nav List */}
+      <nav className="flex-1 space-y-1.5 overflow-y-auto p-3">
         {links.map((link) => {
-          // Check if active route (exact match for /dashboard, startsWith for others)
-          const isActive = link.href === '/dashboard' 
-            ? router.pathname === '/dashboard'
-            : router.pathname.startsWith(link.href);
-            
+          const isActive =
+            link.href === '/dashboard'
+              ? router.pathname === '/dashboard'
+              : router.pathname.startsWith(link.href);
+
           const Icon = link.icon;
           return (
             <Link
               key={link.name}
               href={link.href}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
+              onClick={onCloseMobile}
+              className={`flex items-center gap-3 rounded-lg px-3.5 py-2.5 text-xs font-medium transition-all ${
                 isActive
-                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400'
-                  : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-900 dark:hover:text-white'
+                  ? 'bg-primary text-white font-semibold shadow-xs'
+                  : 'text-text-secondary hover:bg-surface-subtle hover:text-foreground'
               }`}
             >
-              <Icon className={`h-5 w-5 ${isActive ? 'text-emerald-600 dark:text-emerald-400' : 'text-zinc-400 group-hover:text-zinc-500'}`} />
-              {link.name}
+              <Icon className={`h-4 w-4 shrink-0 ${isActive ? 'text-white' : 'text-text-muted'}`} />
+              <span className="truncate">{link.name}</span>
             </Link>
           );
         })}
       </nav>
 
-      <div className="border-t border-zinc-200 p-4 dark:border-zinc-800">
+      {/* User Status Card & Sign Out */}
+      <div className="border-t border-border p-3 space-y-2">
+        <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-surface-subtle border border-border/60">
+          <div className="h-8 w-8 rounded-full bg-primary-soft text-primary font-bold text-xs flex items-center justify-center shrink-0">
+            {user?.lastName?.[0] || 'U'}
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="text-xs font-bold text-foreground truncate">
+              {user?.lastName} {user?.firstName}
+            </div>
+            <div className="text-2xs text-text-muted truncate">
+              {user?.email}
+            </div>
+          </div>
+        </div>
+
         <button
           onClick={logout}
-          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-rose-600 transition-all hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-500/10"
+          className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50 transition-colors cursor-pointer"
         >
-          <LogOut className="h-5 w-5" />
-          Đăng xuất
+          <LogOut className="h-4 w-4" />
+          <span>Đăng xuất tài khoản</span>
         </button>
       </div>
-    </div>
+    </aside>
   );
 }

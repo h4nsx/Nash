@@ -1,79 +1,72 @@
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { useRouter } from 'next/router';
 
 export function Navbar() {
   const { user, logout, isInitialized } = useAuth();
-  const router = useRouter();
 
   const handleLogout = async () => {
     await logout();
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/80">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-900 font-mono text-lg font-bold text-white shadow dark:bg-white dark:text-zinc-900">
-              N
-            </div>
-            <span className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
-              NASH
-            </span>
+    <header className="sticky top-0 z-50 w-full border-b border-border bg-surface/85 backdrop-blur-md transition-all">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 relative">
+        
+        {/* Brand Logo */}
+        <div className="flex items-center">
+          <Link href="/" className="text-xl font-black tracking-tight text-foreground hover:text-primary transition-colors">
+            NASH
           </Link>
-          <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-zinc-600 dark:text-zinc-400">
-            <Link
-              href="/projects"
-              className="transition hover:text-zinc-900 dark:hover:text-white"
-            >
-              Tìm Việc
-            </Link>
-            <Link
-              href="/freelancers"
-              className="transition hover:text-zinc-900 dark:hover:text-white"
-            >
-              Thuê Chuyên Gia
-            </Link>
-            <Link
-              href="/categories"
-              className="transition hover:text-zinc-900 dark:hover:text-white"
-            >
-              Danh Mục
-            </Link>
-          </nav>
         </div>
 
+        {/* Center Nav Links */}
+        <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-text-secondary absolute left-1/2 -translate-x-1/2">
+          <Link href="/projects" className="transition-colors hover:text-foreground">
+            Tìm việc
+          </Link>
+          <Link href="/freelancers" className="transition-colors hover:text-foreground">
+            Tìm người làm
+          </Link>
+          <Link href="/categories" className="transition-colors hover:text-foreground">
+            Danh mục
+          </Link>
+        </nav>
+
+        {/* Auth CTA */}
         <div className="flex items-center gap-3">
           {isInitialized && user ? (
-            <div className="flex items-center gap-4">
-              <Link href="/dashboard" className="text-sm font-medium text-zinc-900 dark:text-white">
-                Chào, {user.lastName} {user.firstName}
+            <div className="flex items-center gap-3">
+              <Link 
+                href="/dashboard" 
+                className="text-sm font-medium text-text-secondary hover:text-foreground transition-colors"
+              >
+                Chào, <span className="font-semibold text-foreground">{user.lastName} {user.firstName}</span>
               </Link>
               <button
                 onClick={handleLogout}
-                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                className="rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-text-secondary transition-all hover:bg-surface-subtle hover:text-foreground cursor-pointer"
               >
                 Đăng Xuất
               </button>
             </div>
           ) : (
-            <>
+            <div className="flex items-center gap-2.5">
               <Link
                 href="/login"
-                className="rounded-lg px-3 py-1.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                className="px-3.5 py-1.5 text-sm font-medium text-text-secondary transition-colors hover:text-foreground"
               >
                 Đăng Nhập
               </Link>
               <Link
                 href="/register"
-                className="rounded-lg bg-zinc-900 px-4 py-1.5 text-sm font-medium text-white shadow-sm transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+                className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-1.5 text-sm font-semibold text-white shadow-xs transition-all active:scale-[0.98]"
               >
                 Đăng Ký
               </Link>
-            </>
+            </div>
           )}
         </div>
+
       </div>
     </header>
   );

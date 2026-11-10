@@ -1,90 +1,150 @@
 # NASH UI/UX & Design System Guidelines
 
-This document outlines the visual language, design patterns, and aesthetic standards for the NASH frontend. The goal is to create an enterprise-grade, modern, and highly responsive user interface that builds trust for both freelancers and clients.
+This document outlines the visual language, design system tokens, and UI patterns for the NASH frontend (`apps/web`). The design system emphasizes clarity, high contrast, restrained elegance, and enterprise trust.
 
-## 1. Core Aesthetic Principles
+---
 
-Based on the baseline setup in `page.tsx`, the design emphasizes:
-1. **Glassmorphism & Depth:** Soft shadows, translucent backgrounds (`bg-zinc-50/50`, `backdrop-blur`), and subtle borders.
-2. **Minimalist Contrast:** Deep dark modes (`bg-zinc-900`) and crisp light modes (`bg-white`) using the `zinc` color palette for a professional, unopinionated foundation.
-3. **Micro-Interactions:** Subtle animations (`animate-pulse`, `animate-spin`, `hover:bg-zinc-100`, `transition-all`) to make the interface feel alive and responsive.
-4. **Typography Driven:** Using `Geist` and `Geist Mono` fonts. Generous whitespace, tight tracking on headings (`tracking-tight`), and relaxed tracking on subheadings (`tracking-wide`).
+## 1. Design Philosophy
 
-## 2. Color Palette
+1. **Restraint & Purpose**: Avoid visual noise. Use badges and status indicators only where they convey critical business state (e.g., Verified Skills, Match score, Contract negotiation stage).
+2. **High-Contrast Legibility**: Rely on deep obsidian slate navy (`#0F172A`) for typography paired with crisp neutral borders (`#E2E8F0`) and luminous light slate backgrounds (`#F8FAFC`).
+3. **Precision Blue Brand Accent**: Core interactive elements use vibrant Precision Cobalt / Sapphire Blue (`#2563EB` with `#1D4ED8` hover) instead of washed-out or muddy grays.
+4. **Show, Don't Tell**: Favor tangible product preview cards and realistic interface representations over generic icon grids.
 
-We rely heavily on Tailwind's default palette, specifically tailored to the following semantics:
-- **Base/Neutral:** `zinc` (Zinc-50 to Zinc-900). Used for all backgrounds, borders, and main text.
-- **Brand/Primary:** We avoid generic primary colors. Use `emerald` (Emerald-500) for success states, active pulses, and primary call-to-actions.
-- **Warning/Pending:** `amber` (Amber-400 to Amber-600) for pending contracts, warnings, and missing information.
-- **Destructive/Error:** `rose` (Rose-500) for destructive actions (e.g., rejecting a contract, deleting an account).
+---
 
-## 3. Typography Hierarchy (Geist)
+## 2. Design Tokens (`:root` Specification)
 
-- **Hero Headings:** `text-4xl font-extrabold tracking-tight sm:text-6xl text-zinc-900 dark:text-white`
-- **Section Headers:** `text-sm font-semibold uppercase tracking-wider text-zinc-900 dark:text-white`
-- **Body Text:** `text-base text-zinc-600 dark:text-zinc-400`
-- **Monospace Data:** `font-mono text-sm` (Used for timestamps, IDs, code snippets)
+```css
+:root {
+  /* Brand (Precision Cobalt / Sapphire) */
+  --brand-50: #EFF6FF;
+  --brand-100: #DBEAFE;
+  --brand-200: #BFDBFE;
+  --brand-300: #93C5FD;
+  --brand-400: #60A5FA;
+  --brand-500: #3B82F6;
+  --brand-600: #2563EB;
+  --brand-700: #1D4ED8;
+  --brand-800: #1E40AF;
+  --brand-900: #1E3A8A;
 
-## 4. UI Components Library
+  /* Navy (Deep Slate Hierarchy) */
+  --navy-50: #F8FAFC;
+  --navy-100: #F1F5F9;
+  --navy-200: #E2E8F0;
+  --navy-300: #CBD5E1;
+  --navy-400: #94A3B8;
+  --navy-500: #64748B;
+  --navy-600: #475569;
+  --navy-700: #334155;
+  --navy-800: #1E293B;
+  --navy-900: #0F172A;
+  --navy-950: #080E18;
+
+  /* Background & Surface */
+  --background: #F8FAFC;
+  --surface: #FFFFFF;
+  --surface-subtle: #F1F5F9;
+  --surface-muted: #E2E8F0;
+
+  /* Text & Typography */
+  --foreground: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #64748B;
+  --text-disabled: #94A3B8;
+
+  /* Borders & Dividers */
+  --border: #E2E8F0;
+  --border-strong: #CBD5E1;
+
+  /* Primary Interactive Actions */
+  --primary: #2563EB;
+  --primary-hover: #1D4ED8;
+  --primary-active: #1E40AF;
+  --primary-foreground: #FFFFFF;
+  --primary-soft: #EFF6FF;
+  --focus-ring: rgba(37, 99, 235, 0.2);
+
+  /* Semantic Feedback */
+  --success: #059669;
+  --success-bg: #ECFDF5;
+
+  --warning: #D97706;
+  --warning-bg: #FFFBEB;
+
+  --danger: #DC2626;
+  --danger-bg: #FEF2F2;
+
+  --info: #0284C7;
+  --info-bg: #F0F9FF;
+
+  /* Geometry & Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+}
+```
+
+---
+
+## 3. Tailwind CSS v4 Theme Mapping
+
+The tokens are registered via `@theme inline` in `apps/web/styles/globals.css`:
+
+| Utility Category | Classes Available |
+| :--- | :--- |
+| **Brand Colors** | `bg-brand-50` ... `bg-brand-900`, `text-brand-600`, `border-brand-300` |
+| **Navy Slate** | `bg-navy-900`, `text-navy-950`, `border-navy-200` |
+| **Surfaces** | `bg-background`, `bg-surface`, `bg-surface-subtle`, `bg-surface-muted` |
+| **Text** | `text-foreground`, `text-text-secondary`, `text-text-muted`, `text-text-disabled` |
+| **Borders** | `border-border`, `border-border-strong` |
+| **Actions** | `bg-primary`, `hover:bg-primary-hover`, `text-primary-foreground`, `bg-primary-soft` |
+| **Semantics** | `bg-success-bg`, `text-success`, `bg-warning-bg`, `text-warning`, `bg-danger-bg`, `text-danger`, `bg-info-bg`, `text-info` |
+
+---
+
+## 4. UI Patterns & Guidelines
 
 ### 4.1. Buttons
-Avoid flat, featureless buttons. All buttons should have slight borders, shadows, and hover transitions.
+Keep action buttons sleek and intentional:
 ```tsx
-// Primary Button
-<button className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-all hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200">
-  Primary Action
+// Primary CTA
+<button className="inline-flex items-center justify-center rounded-lg bg-primary hover:bg-primary-hover px-5 py-2.5 text-sm font-semibold text-white shadow-xs transition-all active:scale-[0.98]">
+  Đăng Dự Án
 </button>
 
-// Secondary / Outline Button
-<button className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
-  Secondary Action
+// Secondary Outline
+<button className="inline-flex items-center justify-center rounded-lg border border-border bg-surface hover:bg-surface-subtle px-4 py-2 text-sm font-medium text-foreground shadow-2xs transition-all">
+  Xem Thêm
 </button>
 ```
 
-### 4.2. Cards & Containers
-Containers should use soft borders and a subtle difference in background color from the main page body.
+### 4.2. Cards & Elevation
+Containers use clean white surfaces (`bg-surface`), crisp neutral borders (`border-border`), and minimal shadows (`shadow-xs` or `shadow-sm`):
 ```tsx
-<div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-  {/* Content */}
+<div className="rounded-xl border border-border bg-surface p-6 shadow-xs transition-colors hover:border-brand-300">
+  <h3 className="text-base font-bold text-foreground">Tiêu Đề Thẻ</h3>
+  <p className="mt-1 text-sm text-text-secondary">Mô tả ngắn gọn, dễ đọc.</p>
 </div>
 ```
 
-### 4.3. Status Badges
-Used heavily in the Contract and Milestone systems to denote state.
+### 4.3. Status Badges (Use Sparingly)
+Only display status badges when communicating domain status:
 ```tsx
-// Active / Success (Emerald)
-<span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-  Active
+// Verified Skill (Success)
+<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-success-bg text-success">
+  Kỹ Năng Đã Xác Thực
 </span>
 
-// Pending (Amber)
-<span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-1 text-xs font-medium text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">
-  <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" />
-  Pending
+// Smart Match Percentage (Info / Brand)
+<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-info-bg text-info">
+  96% Phù Hợp
 </span>
 ```
 
-## 5. Iconography
-We strictly use **Lucide React** (`lucide-react`).
-- Icons should always be sized predictably: `h-4 w-4` or `h-5 w-5`.
-- Icons should inherit color contextually (`text-zinc-500` generally, or matching the text color inside a button).
-
-## 6. TipTap Editor Integration (CMS & Contracts)
-
-NASH uses **TipTap** to render rich text for Contracts and CMS Articles. 
-
-### Styling TipTap Content (`Prose`)
-When rendering TipTap HTML (via `dangerouslySetInnerHTML`), we must wrap it in a typography plugin or custom CSS class to ensure it respects the `Geist` font and Tailwind theme.
-
-```tsx
-<div 
-  className="prose prose-zinc dark:prose-invert max-w-none prose-headings:font-bold prose-a:text-emerald-600"
-  dangerouslySetInnerHTML={{ __html: article.contentHtml }} 
-/>
-```
-
-### Editor UI
-The actual Editor interface (for Admins and Clients modifying contracts) should resemble a modern notion-like interface. 
-- A floating or fixed minimal toolbar.
-- No heavy borders around the text area. Let the text breathe.
+### 4.4. Iconography
+* Always use **Lucide React** (`lucide-react`).
+* Restrict icons to purposeful anchors (`h-4 w-4` for button labels, `h-5 w-5` for card headers).
+* Avoid repetitive icon bullets on every line to preserve clean visual scanning.

@@ -41,7 +41,7 @@ public class JwtService : IJwtService
             issuer: issuer,
             audience: audience,
             claims: claims,
-            expires: DateTime.UtcNow.AddHours(2), // 2 hours expiration
+            expires: DateTime.UtcNow.AddDays(7), // 7 days expiration matching cookie
             signingCredentials: creds
         );
 

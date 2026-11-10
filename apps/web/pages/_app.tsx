@@ -27,7 +27,7 @@ export default function App({ Component, pageProps }: AppProps) {
 
   return (
     <AuthProvider>
-      <div className={`${geistSans.variable} ${geistMono.variable} font-sans min-h-screen flex flex-col bg-white text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 antialiased`}>
+      <div className={`${geistSans.variable} ${geistMono.variable} font-sans min-h-screen flex flex-col bg-background text-foreground antialiased`}>
         {!hideLayout && <Navbar />}
         <main className="flex-1 w-full">
           <Component {...pageProps} />

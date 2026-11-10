@@ -63,14 +63,14 @@ export default function RegisterPage() {
       <div className="w-full max-w-xl rounded-2xl border border-zinc-200 bg-white p-8 shadow-xl shadow-zinc-200/50 dark:border-zinc-800 dark:bg-zinc-900 dark:shadow-none my-12">
         
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-900 font-mono text-xl font-bold text-white shadow dark:bg-white dark:text-zinc-900">
-            N
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">
-            Tạo tài khoản NASH
+          <Link href="/" className="inline-block text-3xl font-black tracking-tight text-foreground mb-2">
+            NASH
+          </Link>
+          <h1 className="text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
+            Tạo tài khoản mới
           </h1>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            Tham gia vào mạng lưới chuyên gia và doanh nghiệp hàng đầu
+          <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+            Bắt đầu tìm việc hoặc đăng dự án trên NASH
           </p>
         </div>
 
