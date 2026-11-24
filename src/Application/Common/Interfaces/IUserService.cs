@@ -98,6 +98,10 @@ public class FreelancerProfileDto
     public string? LinkedinUrl { get; set; }
     public string? WebsiteUrl { get; set; }
     public decimal JobSuccessScore { get; set; }
+    public string? BankBin { get; set; }
+    public string? BankName { get; set; }
+    public string? BankAccountNumber { get; set; }
+    public string? BankAccountName { get; set; }
     public List<string> Skills { get; set; } = new();
     public List<PortfolioItemDto> PortfolioItems { get; set; } = new();
     public List<WorkExperienceDto> WorkExperiences { get; set; } = new();
@@ -120,6 +124,10 @@ public class UpdateFreelancerProfileDto
     public string? GithubUrl { get; set; }
     public string? LinkedinUrl { get; set; }
     public string? WebsiteUrl { get; set; }
+    public string? BankBin { get; set; }
+    public string? BankName { get; set; }
+    public string? BankAccountNumber { get; set; }
+    public string? BankAccountName { get; set; }
     public List<PortfolioItemDto> PortfolioItems { get; set; } = new();
     public List<WorkExperienceDto> WorkExperiences { get; set; } = new();
     public List<EducationDto> Educations { get; set; } = new();

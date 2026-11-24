@@ -91,6 +91,29 @@ export default function WorkContractsPage() {
   const [cancellingContract, setCancellingContract] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
 
+  // Pay Milestone (VietQR & Card) modal state
+  const [payingMilestone, setPayingMilestone] = useState<Milestone | null>(null);
+  const [paymentQrData, setPaymentQrData] = useState<{
+    milestoneId: string;
+    contractId: string;
+    projectTitle: string;
+    milestoneTitle: string;
+    amount: number;
+    currency: string;
+    bankBin: string;
+    bankName: string;
+    bankAccountNumber: string;
+    bankAccountName: string;
+    memo: string;
+    vietQrUrl: string;
+    transactionCode: string;
+  } | null>(null);
+  const [loadingQr, setLoadingQr] = useState(false);
+  const [paymentTab, setPaymentTab] = useState<'vietqr' | 'card'>('vietqr');
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
   const searchInputId = useId();
 
   const fetchContracts = async () => {
@@ -200,6 +223,56 @@ export default function WorkContractsPage() {
     } finally {
       setReviewing(false);
     }
+  };
+
+  // Client: Open Payment Modal
+  const handleOpenPaymentModal = async (milestone: Milestone) => {
+    setPayingMilestone(milestone);
+    setPaymentQrData(null);
+    setLoadingQr(true);
+    setPaymentSuccess(false);
+    setPaymentTab('vietqr');
+
+    try {
+      const res = await apiClient<any>(`/payments/milestones/${milestone.id}/qr`);
+      if (res.success && res.data) {
+        setPaymentQrData(res.data);
+      }
+    } catch (err: unknown) {
+      alert(err instanceof ApiException ? err.error.message : 'Không thể tạo mã VietQR thanh toán.');
+    } finally {
+      setLoadingQr(false);
+    }
+  };
+
+  // Client: Confirm payment completed
+  const handleConfirmTransfer = async () => {
+    if (!payingMilestone) return;
+
+    try {
+      setConfirmingPayment(true);
+      const res = await apiClient(`/payments/milestones/${payingMilestone.id}/confirm-transfer`, {
+        method: 'POST'
+      });
+
+      if (res.success) {
+        setPaymentSuccess(true);
+        setTimeout(() => {
+          setPayingMilestone(null);
+          fetchContracts();
+        }, 1500);
+      }
+    } catch (err: unknown) {
+      alert(err instanceof ApiException ? err.error.message : 'Xác nhận thanh toán thất bại.');
+    } finally {
+      setConfirmingPayment(false);
+    }
+  };
+
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
   };
 
   // Client: Request Changes
@@ -711,11 +784,10 @@ export default function WorkContractsPage() {
                                         Yêu cầu sửa
                                       </button>
                                       <button
-                                        onClick={() => handleAcceptMilestone(milestone.id)}
-                                        disabled={reviewing}
+                                        onClick={() => handleOpenPaymentModal(milestone)}
                                         className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
                                       >
-                                        {reviewing ? 'Đang duyệt...' : 'Nghiệm thu'}
+                                        Thanh toán & Nghiệm thu
                                       </button>
                                     </div>
                                   )}
@@ -1004,6 +1076,229 @@ export default function WorkContractsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Client: Pay Milestone Modal with VietQR and Card Tabs */}
+      {payingMilestone && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-surface shadow-2xl animate-in fade-in zoom-in-95 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-border bg-surface-subtle">
+              <div>
+                <h3 className="text-sm font-bold text-foreground">Thanh toán & Nghiệm thu Cột mốc</h3>
+                <p className="text-2xs text-text-muted mt-0.5">{payingMilestone.title}</p>
+              </div>
+              <button
+                onClick={() => setPayingMilestone(null)}
+                className="rounded-lg p-1 text-text-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {paymentSuccess ? (
+              <div className="p-8 text-center space-y-3">
+                <div className="h-14 w-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="h-8 w-8" />
+                </div>
+                <h4 className="text-base font-bold text-foreground">Thanh toán & Nghiệm thu Thành công!</h4>
+                <p className="text-xs text-text-secondary">
+                  Cột mốc đã được xác nhận hoàn tất. Freelancer sẽ nhận được thông báo nghiệm thu ngay lập tức.
+                </p>
+              </div>
+            ) : (
+              <div className="p-6 space-y-5">
+                {/* 2-Option Selector */}
+                <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-surface-subtle border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentTab('vietqr')}
+                    className={`flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                      paymentTab === 'vietqr'
+                        ? 'bg-primary text-white shadow-xs'
+                        : 'text-text-secondary hover:text-foreground'
+                    }`}
+                  >
+                    <span>Quét mã VietQR (Napas 24/7)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentTab('card')}
+                    className={`relative flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                      paymentTab === 'card'
+                        ? 'bg-primary text-white shadow-xs'
+                        : 'text-text-secondary hover:text-foreground'
+                    }`}
+                  >
+                    <span>Thẻ Visa / MasterCard</span>
+                    <span className="rounded-full bg-amber-100 text-amber-800 px-1.5 py-0.2 text-4xs font-bold">
+                      Sắp ra mắt
+                    </span>
+                  </button>
+                </div>
+
+                {/* Option 1: VietQR Active Tab */}
+                {paymentTab === 'vietqr' && (
+                  <div className="space-y-4">
+                    {loadingQr ? (
+                      <div className="flex h-48 items-center justify-center text-xs text-text-muted">
+                        Đang tạo mã VietQR thanh toán...
+                      </div>
+                    ) : paymentQrData ? (
+                      <>
+                        <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl border border-primary/30 bg-primary-soft/10 p-4">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={paymentQrData.vietQrUrl}
+                            alt="VietQR Payment Code"
+                            className="h-44 w-44 rounded-xl border border-border bg-white p-2 object-contain shadow-xs shrink-0"
+                          />
+
+                          <div className="space-y-2 text-xs w-full">
+                            <div>
+                              <span className="text-3xs text-text-muted block">Số tiền cần thanh toán</span>
+                              <span className="text-base font-extrabold text-foreground font-mono text-primary">
+                                {paymentQrData.amount.toLocaleString()} VND
+                              </span>
+                            </div>
+
+                            <div className="space-y-1.5 pt-1 border-t border-border/60">
+                              <div className="flex items-center justify-between">
+                                <span className="text-2xs text-text-muted">Ngân hàng:</span>
+                                <span className="font-semibold text-foreground text-2xs">{paymentQrData.bankName}</span>
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <span className="text-2xs text-text-muted">Số tài khoản:</span>
+                                <div className="flex items-center gap-1 font-mono font-bold text-foreground text-2xs">
+                                  <span>{paymentQrData.bankAccountNumber}</span>
+                                  <button
+                                    onClick={() => copyToClipboard(paymentQrData.bankAccountNumber, 'acc')}
+                                    className="text-primary hover:underline text-3xs ml-1"
+                                  >
+                                    {copiedField === 'acc' ? 'Đã chép!' : 'Sao chép'}
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <span className="text-2xs text-text-muted">Chủ tài khoản:</span>
+                                <span className="font-semibold text-foreground text-2xs uppercase">
+                                  {paymentQrData.bankAccountName}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center justify-between bg-white dark:bg-surface p-1.5 rounded-lg border border-border">
+                                <span className="text-3xs text-text-muted">Nội dung CK:</span>
+                                <div className="flex items-center gap-1 font-mono font-bold text-primary text-2xs">
+                                  <span>{paymentQrData.memo}</span>
+                                  <button
+                                    onClick={() => copyToClipboard(paymentQrData.memo, 'memo')}
+                                    className="text-primary hover:underline text-3xs ml-1"
+                                  >
+                                    {copiedField === 'memo' ? 'Đã chép!' : 'Sao chép'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2.5 text-2xs text-emerald-800 space-y-0.5">
+                          <div className="font-semibold">Lưu ý khi chuyển khoản:</div>
+                          <p>
+                            Vui lòng giữ nguyên mã nội dung chuyển khoản <strong>{paymentQrData.memo}</strong> để hệ thống tự động đối soát và khớp lệnh tức thì.
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center text-xs text-rose-600">
+                        Không thể tải thông tin thanh toán.
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                      <button
+                        type="button"
+                        onClick={() => setPayingMilestone(null)}
+                        className="rounded-lg border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle"
+                      >
+                        Đóng
+                      </button>
+                      <button
+                        type="button"
+                        disabled={confirmingPayment}
+                        onClick={handleConfirmTransfer}
+                        className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-4 py-1.5 text-xs font-bold text-white shadow-xs"
+                      >
+                        {confirmingPayment ? 'Đang xác nhận...' : 'Thanh toán thành công'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Option 2: Card Locked Tab */}
+                {paymentTab === 'card' && (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 text-center space-y-2">
+                      <span className="inline-block rounded-full bg-amber-200 text-amber-900 px-2 py-0.5 text-3xs font-bold">
+                        Tạm khóa thử nghiệm
+                      </span>
+                      <h4 className="text-xs font-bold text-foreground">
+                        Cổng thanh toán Thẻ Quốc tế (Visa / MasterCard)
+                      </h4>
+                      <p className="text-2xs text-text-secondary max-w-sm mx-auto leading-relaxed">
+                        Phương thức thanh toán qua thẻ quốc tế đang hoàn tất kết nối cổng PCI-DSS. Để tiết kiệm chi phí giao dịch, vui lòng sử dụng quét mã VietQR 24/7 (Miễn phí 100%).
+                      </p>
+                    </div>
+
+                    <div className="space-y-3 opacity-40 pointer-events-none select-none">
+                      <div>
+                        <label className="block text-2xs font-semibold text-text-muted mb-1">Số thẻ (Card Number)</label>
+                        <input
+                          type="text"
+                          disabled
+                          placeholder="4111 2222 3333 4444"
+                          className="w-full rounded-lg border border-border bg-surface-subtle p-2 text-xs font-mono"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-2xs font-semibold text-text-muted mb-1">Hạn dùng (MM/YY)</label>
+                          <input
+                            type="text"
+                            disabled
+                            placeholder="12/28"
+                            className="w-full rounded-lg border border-border bg-surface-subtle p-2 text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-2xs font-semibold text-text-muted mb-1">Mã bảo mật CVV</label>
+                          <input
+                            type="text"
+                            disabled
+                            placeholder="•••"
+                            className="w-full rounded-lg border border-border bg-surface-subtle p-2 text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-2 border-t border-border">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentTab('vietqr')}
+                        className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-1.5 text-xs font-semibold text-white shadow-xs"
+                      >
+                        Chuyển sang Quét mã VietQR
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

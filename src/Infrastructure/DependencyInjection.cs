@@ -62,6 +62,7 @@ public static class DependencyInjection
             services.AddScoped<IContractTemplateService, ContractTemplateService>();
             services.AddScoped<IHandshakeService, HandshakeService>();
             services.AddScoped<IWorkService, WorkService>();
+            services.AddScoped<IPaymentService, PaymentService>();
             services.AddScoped<ISystemSettingsService, SystemSettingsService>();
             services.AddScoped<ICmsService, CmsService>();
             

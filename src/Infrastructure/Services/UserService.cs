@@ -124,6 +124,10 @@ public class UserService : IUserService
             LinkedinUrl = profile.LinkedinUrl,
             WebsiteUrl = profile.WebsiteUrl,
             JobSuccessScore = profile.JobSuccessScore,
+            BankBin = profile.BankBin,
+            BankName = profile.BankName,
+            BankAccountNumber = profile.BankAccountNumber,
+            BankAccountName = profile.BankAccountName,
             Skills = user.VerifiedSkills.Select(vs => vs.Skill.Name).Distinct().ToList(),
             PortfolioItems = profile.PortfolioItems.Select(p => new PortfolioItemDto
             {
@@ -213,6 +217,10 @@ public class UserService : IUserService
         profile.GithubUrl = request.GithubUrl;
         profile.LinkedinUrl = request.LinkedinUrl;
         profile.WebsiteUrl = request.WebsiteUrl;
+        profile.BankBin = request.BankBin;
+        profile.BankName = request.BankName;
+        profile.BankAccountNumber = request.BankAccountNumber;
+        profile.BankAccountName = request.BankAccountName;
 
         // Sync PortfolioItems
         _context.PortfolioItems.RemoveRange(profile.PortfolioItems);

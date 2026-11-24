@@ -194,19 +194,22 @@ export function Topbar({ onToggleMobileMenu }: TopbarProps) {
         <div className="h-5 w-px bg-border" />
 
         {/* User Pill */}
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-navy-900 text-xs font-bold text-white shadow-2xs">
-            {user?.lastName?.[0] || 'U'}
+        <Link
+          href={user?.role === 'Client' ? '/dashboard/client/projects' : '/dashboard/profile'}
+          className="flex items-center gap-2.5 rounded-lg p-1.5 hover:bg-surface-subtle transition-colors group cursor-pointer"
+        >
+          <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-primary-focus text-white font-bold text-xs uppercase flex items-center justify-center shrink-0 shadow-xs ring-2 ring-white">
+            {((user?.firstName?.[0] || user?.lastName?.[0] || 'U')).toUpperCase()}
           </div>
           <div className="hidden sm:flex flex-col text-left">
-            <span className="text-xs font-bold text-foreground">
-              {user?.lastName} {user?.firstName}
+            <span className="text-xs font-bold text-foreground capitalize group-hover:text-primary transition-colors">
+              {[user?.lastName, user?.firstName].filter(Boolean).join(' ') || 'Người dùng'}
             </span>
             <span className="text-2xs text-text-muted font-medium">
               {user?.email}
             </span>
           </div>
-        </div>
+        </Link>
       </div>
     </header>
   );

@@ -45,8 +45,8 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
   return (
     <aside className="flex h-full w-64 flex-col border-r border-border bg-surface select-none">
       {/* Brand Header */}
-      <div className="flex h-16 items-center justify-between px-5 border-b border-border">
-        <Link href="/" className="text-xl font-black tracking-tight text-foreground hover:text-primary transition-colors">
+      <div className="relative flex h-16 items-center justify-center px-5 border-b border-border">
+        <Link href="/" className="text-xl font-black tracking-widest text-foreground hover:text-primary transition-colors">
           NASH
         </Link>
 
@@ -54,7 +54,7 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
         {onCloseMobile && (
           <button
             onClick={onCloseMobile}
-            className="rounded-lg p-1.5 text-text-muted hover:text-foreground hover:bg-surface-subtle md:hidden"
+            className="absolute right-4 rounded-lg p-1.5 text-text-muted hover:text-foreground hover:bg-surface-subtle md:hidden cursor-pointer"
             aria-label="Đóng thanh điều hướng"
           >
             <X className="h-5 w-5" />
@@ -90,14 +90,14 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
       </nav>
 
       {/* User Status Card & Sign Out */}
-      <div className="border-t border-border p-3 space-y-2">
-        <div className="flex items-center gap-2.5 px-3 py-2 rounded-lg bg-surface-subtle border border-border/60">
-          <div className="h-8 w-8 rounded-full bg-primary-soft text-primary font-bold text-xs flex items-center justify-center shrink-0">
-            {user?.lastName?.[0] || 'U'}
+      <div className="border-t border-border p-3 space-y-2 pb-6">
+        <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-surface-subtle border border-border/60">
+          <div className="h-9 w-9 rounded-full bg-gradient-to-tr from-primary to-primary-focus text-white font-bold text-xs uppercase flex items-center justify-center shrink-0 shadow-xs ring-2 ring-white">
+            {((user?.firstName?.[0] || user?.lastName?.[0] || 'U')).toUpperCase()}
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-xs font-bold text-foreground truncate">
-              {user?.lastName} {user?.firstName}
+            <div className="text-xs font-bold text-foreground truncate capitalize">
+              {[user?.lastName, user?.firstName].filter(Boolean).join(' ') || 'Người dùng'}
             </div>
             <div className="text-2xs text-text-muted truncate">
               {user?.email}

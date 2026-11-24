@@ -671,6 +671,10 @@ namespace Infrastructure.Migrations
                     b.Property<decimal?>("BudgetMin")
                         .HasColumnType("numeric");
 
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<Guid>("ClientId")
                         .HasColumnType("uuid");
 
@@ -684,11 +688,42 @@ namespace Infrastructure.Migrations
                     b.Property<DateTime?>("EndDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int>("ExperienceLevel")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FileAttachmentsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<decimal?>("HourlyRateMax")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("HourlyRateMin")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("LocationPreference")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PreferredLanguage")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("PricingType")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Scope")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("StartDate")
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
+
+                    b.Property<string>("SubCategory")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -797,7 +832,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            CreatedAt = new DateTime(2026, 11, 24, 14, 18, 53, 733, DateTimeKind.Utc).AddTicks(2500),
+                            CreatedAt = new DateTime(2026, 11, 24, 14, 50, 51, 446, DateTimeKind.Utc).AddTicks(4709),
                             Description = "Kỹ năng lập trình front-end với thư viện ReactJS.",
                             IsActive = true,
                             Name = "Phát triển ReactJS"
@@ -805,7 +840,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("22222222-2222-2222-2222-222222222222"),
-                            CreatedAt = new DateTime(2026, 11, 24, 14, 18, 53, 733, DateTimeKind.Utc).AddTicks(2511),
+                            CreatedAt = new DateTime(2026, 11, 24, 14, 50, 51, 446, DateTimeKind.Utc).AddTicks(4721),
                             Description = "Kỹ năng xây dựng ứng dụng với ngôn ngữ C# và nền tảng .NET.",
                             IsActive = true,
                             Name = "Lập trình C# .NET"
@@ -855,7 +890,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("33333333-3333-3333-3333-333333333333"),
-                            CreatedAt = new DateTime(2026, 11, 24, 14, 18, 53, 733, DateTimeKind.Utc).AddTicks(2797),
+                            CreatedAt = new DateTime(2026, 11, 24, 14, 50, 51, 446, DateTimeKind.Utc).AddTicks(5000),
                             PassingScore = 70,
                             SkillId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Status = 1,
@@ -867,7 +902,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("44444444-4444-4444-4444-444444444444"),
-                            CreatedAt = new DateTime(2026, 11, 24, 14, 18, 53, 733, DateTimeKind.Utc).AddTicks(2810),
+                            CreatedAt = new DateTime(2026, 11, 24, 14, 50, 51, 446, DateTimeKind.Utc).AddTicks(5013),
                             PassingScore = 80,
                             SkillId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Status = 1,
