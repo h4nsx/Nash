@@ -24,7 +24,7 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const res = await apiClient<{ role: string; email: string; firstName: string; lastName: string }>('/auth/login', {
+      const res = await apiClient<{ role: string; email: string; firstName: string; lastName: string; token?: string }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify(form),
       });
@@ -32,6 +32,11 @@ export default function LoginPage() {
       if (res.success && res.data) {
         // Save to global auth state
         login(res.data);
+        
+        // Also set client cookie for Next.js middleware cross-origin compatibility
+        if (res.data.token) {
+          document.cookie = `X-Access-Token=${res.data.token}; path=/; max-age=604800; SameSite=Lax; Secure`;
+        }
         
         // Redirect based on redirect query or role
         const redirectUrl = typeof router.query.redirect === 'string' ? router.query.redirect : null;

@@ -44,18 +44,15 @@ public class AuthController : ControllerBase
             return Unauthorized(new ApiErrorResponse { StatusCode = 401, Code = "LOGIN_FAILED", Message = "Email hoặc mật khẩu không chính xác.", Errors = new Dictionary<string, string[]> { { "Auth", errors } } });
         }
 
-        // Set HttpOnly Cookie
+        // Set HttpOnly Cookie (Must be SameSite=None for cross-origin Netlify -> Fly.io)
         var cookieOptions = new CookieOptions
         {
             HttpOnly = true,
             Secure = true,
-            SameSite = SameSiteMode.Strict,
+            SameSite = SameSiteMode.None,
             Expires = DateTime.UtcNow.AddDays(7)
         };
         Response.Cookies.Append("X-Access-Token", authResponse.Token, cookieOptions);
-
-        // Hide token in body for security
-        authResponse.Token = string.Empty;
 
         return Ok(ApiResponse<AuthResponse>.Ok(authResponse));
     }
@@ -63,7 +60,12 @@ public class AuthController : ControllerBase
     [HttpPost("logout")]
     public IActionResult Logout()
     {
-        Response.Cookies.Delete("X-Access-Token");
+        Response.Cookies.Delete("X-Access-Token", new CookieOptions
+        {
+            HttpOnly = true,
+            Secure = true,
+            SameSite = SameSiteMode.None
+        });
         return Ok(ApiResponse<object>.Ok(new { Message = "Đăng xuất thành công." }));
     }
 
