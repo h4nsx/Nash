@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { apiClient, ApiException } from '@/lib/api/client';
 import { Contract } from './index';
-import { ArrowLeft, Printer, ShieldCheck, CheckCircle2, Building, User, Calendar, FileText } from 'lucide-react';
+import { ArrowLeft, Printer, ShieldCheck, CheckCircle2, Building, User, Calendar, FileText, Star, MessageSquare } from 'lucide-react';
 
 export default function ContractDetailPage() {
   const router = useRouter();
@@ -13,6 +13,14 @@ export default function ContractDetailPage() {
   const [contract, setContract] = useState<Contract | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Review Modal State
+  const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
+  const [rating, setRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewSuccess, setReviewSuccess] = useState<string | null>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!contractId || typeof contractId !== 'string') return;
@@ -45,6 +53,42 @@ export default function ContractDetailPage() {
     window.print();
   };
 
+  const handleSubmitReview = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contractId) return;
+
+    try {
+      setSubmittingReview(true);
+      setReviewError(null);
+      setReviewSuccess(null);
+
+      const res = await apiClient(`/work/contracts/${contractId}/reviews`, {
+        method: 'POST',
+        body: JSON.stringify({
+          rating,
+          comment: reviewComment
+        })
+      });
+
+      if (res.success) {
+        setReviewSuccess('Đã gửi đánh giá thành công!');
+        setTimeout(() => {
+          setIsReviewModalOpen(false);
+        }, 1500);
+      } else {
+        setReviewError(res.message || 'Không thể gửi đánh giá.');
+      }
+    } catch (err: unknown) {
+      if (err instanceof ApiException) {
+        setReviewError(err.error.message || 'Lỗi gửi đánh giá.');
+      } else {
+        setReviewError('Không thể gửi đánh giá lúc này.');
+      }
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
   return (
     <DashboardLayout>
       <Head>
@@ -60,12 +104,24 @@ export default function ContractDetailPage() {
           >
             <ArrowLeft className="h-4 w-4" /> Quay lại danh sách hợp đồng
           </Link>
-          <button
-            onClick={handlePrint}
-            className="inline-flex items-center gap-2 rounded-lg bg-surface border border-border px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-subtle shadow-xs cursor-pointer"
-          >
-            <Printer className="h-4 w-4 text-text-secondary" /> In hợp đồng / Xuất PDF
-          </button>
+
+          <div className="flex items-center gap-2">
+            {contract?.status === 2 && (
+              <button
+                onClick={() => setIsReviewModalOpen(true)}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 shadow-xs cursor-pointer transition-colors"
+              >
+                <Star className="h-4 w-4" /> Đánh giá Đối tác
+              </button>
+            )}
+
+            <button
+              onClick={handlePrint}
+              className="inline-flex items-center gap-2 rounded-lg bg-surface border border-border px-3.5 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-subtle shadow-xs cursor-pointer"
+            >
+              <Printer className="h-4 w-4 text-text-secondary" /> In hợp đồng / Xuất PDF
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -209,6 +265,93 @@ export default function ContractDetailPage() {
                   <span className="text-text-muted font-normal">ID: {contract.freelancerId.substring(0, 12)}</span>
                 </div>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Submit Review Modal */}
+        {isReviewModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
+            <div className="w-full max-w-md rounded-2xl border border-border bg-surface shadow-2xl p-6 space-y-4 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center justify-between border-b border-border pb-3">
+                <div className="flex items-center gap-2">
+                  <Star className="h-5 w-5 text-amber-500 fill-amber-500" />
+                  <h3 className="text-sm font-bold text-foreground">Đánh Giá Đối Tác</h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsReviewModalOpen(false)}
+                  className="text-text-muted hover:text-foreground"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {reviewSuccess && (
+                <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs font-semibold text-emerald-800">
+                  {reviewSuccess}
+                </div>
+              )}
+
+              {reviewError && (
+                <div className="rounded-lg bg-rose-50 border border-rose-200 p-3 text-xs font-semibold text-rose-800">
+                  {reviewError}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmitReview} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Mức độ hài lòng (1 - 5 sao)</label>
+                  <div className="flex items-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        type="button"
+                        key={star}
+                        onClick={() => setRating(star)}
+                        className="p-1 hover:scale-110 transition-transform cursor-pointer"
+                      >
+                        <Star
+                          className={`h-6 w-6 ${
+                            star <= rating
+                              ? 'text-amber-400 fill-amber-400'
+                              : 'text-border fill-transparent'
+                          }`}
+                        />
+                      </button>
+                    ))}
+                    <span className="text-xs font-bold text-foreground ml-2">{rating}/5 sao</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground">Nhận xét chi tiết</label>
+                  <textarea
+                    rows={4}
+                    required
+                    value={reviewComment}
+                    onChange={(e) => setReviewComment(e.target.value)}
+                    placeholder="Chia sẻ trải nghiệm hợp tác, chất lượng công việc, giao tiếp và tiến độ hoàn thành..."
+                    className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground focus:border-primary focus:outline-hidden"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-2 pt-2 border-t border-border">
+                  <button
+                    type="button"
+                    onClick={() => setIsReviewModalOpen(false)}
+                    className="rounded-lg border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle"
+                  >
+                    Hủy bỏ
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingReview}
+                    className="rounded-lg bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary-hover shadow-xs"
+                  >
+                    {submittingReview ? 'Đang gửi...' : 'Gửi đánh giá'}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

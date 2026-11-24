@@ -105,4 +105,14 @@ public class UsersController : ControllerBase
         var freelancers = await _userService.GetPublicFreelancersAsync(skill, search);
         return Ok(ApiResponse<List<PublicFreelancerDto>>.Ok(freelancers));
     }
+
+    [HttpGet("freelancers/{id}")]
+    public async Task<ActionResult<ApiResponse<PublicFreelancerDto>>> GetPublicFreelancerById(Guid id)
+    {
+        var freelancer = await _userService.GetPublicFreelancerByIdAsync(id);
+        if (freelancer == null)
+            return NotFound(new ApiErrorResponse { StatusCode = 404, Code = "FREELANCER_NOT_FOUND", Message = "Không tìm thấy hồ sơ ứng viên." });
+
+        return Ok(ApiResponse<PublicFreelancerDto>.Ok(freelancer));
+    }
 }

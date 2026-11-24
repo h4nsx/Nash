@@ -1,630 +1,500 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { apiClient, ApiException } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthContext';
 import {
+  User,
   Briefcase,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
+  GraduationCap,
   Award,
-  Play,
-  Check,
-  X,
-  FileQuestion,
-  HelpCircle,
-  Timer
+  Globe,
+  MapPin,
+  Clock,
+  ShieldCheck,
+  CheckCircle2,
+  ExternalLink,
+  Edit3,
+  Calendar,
+  Languages,
+  FolderGit2,
+  Sparkles,
+  Star
 } from 'lucide-react';
 
-interface FreelancerProfile {
+interface PortfolioItem {
   id: string;
+  title: string;
+  role: string;
+  description: string;
+  liveUrl?: string;
+  repoUrl?: string;
+  techStack: string[];
+  imageUrls: string[];
+}
+
+interface WorkExperience {
+  id: string;
+  companyName: string;
+  position: string;
+  startDate: string;
+  endDate?: string;
+  isCurrentRole: boolean;
+  description: string;
+}
+
+interface Education {
+  id: string;
+  school: string;
+  degree: string;
+  fieldOfStudy: string;
+  startYear: number;
+  endYear?: number;
+}
+
+interface Certification {
+  id: string;
+  name: string;
+  issuer: string;
+  issueDate?: string;
+  credentialId?: string;
+  credentialUrl?: string;
+}
+
+interface LanguageProficiency {
+  id: string;
+  language: string;
+  proficiencyLevel: string;
+}
+
+interface FullFreelancerProfile {
+  id: string;
+  headline: string;
   hourlyRate?: number;
   yearsOfExperience?: number;
   isAvailable: boolean;
   bio: string;
+  city: string;
+  country: string;
+  timezone: string;
+  hoursPerWeek: string;
+  githubUrl?: string;
+  linkedinUrl?: string;
+  websiteUrl?: string;
+  jobSuccessScore: number;
   skills: string[];
+  portfolioItems: PortfolioItem[];
+  workExperiences: WorkExperience[];
+  educations: Education[];
+  certifications: Certification[];
+  languages: LanguageProficiency[];
 }
 
-interface Skill {
-  id: string;
-  name: string;
-  description: string;
-  isActive: boolean;
-}
-
-interface VerifiedSkill {
-  id: string;
-  skillName: string;
-  verifiedAt: string;
-  expiredAt?: string;
-}
-
-interface TestQuestion {
-  question: string;
-  options: string[];
-  answer?: number;
-}
-
-interface SkillTestAttempt {
-  attemptId: string;
-  skillTestId: string;
-  title: string;
-  timeLimitMinutes: number;
-  tasksJson: string;
-  startedAt: string;
-}
-
-export default function ProfilePage() {
+export default function ProfileViewPage() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<FreelancerProfile | null>(null);
-  const [skillsCatalog, setSkillsCatalog] = useState<Skill[]>([]);
-  const [verifiedSkills, setVerifiedSkills] = useState<VerifiedSkill[]>([]);
-
+  const [profile, setProfile] = useState<FullFreelancerProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
-
-  // Form state
-  const [hourlyRate, setHourlyRate] = useState<string>('');
-  const [yearsOfExperience, setYearsOfExperience] = useState<string>('');
-  const [isAvailable, setIsAvailable] = useState<boolean>(true);
-  const [bio, setBio] = useState<string>('');
-
-  // Assessment Modal state
-  const [activeAttempt, setActiveAttempt] = useState<SkillTestAttempt | null>(null);
-  const [parsedQuestions, setParsedQuestions] = useState<TestQuestion[]>([]);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, number>>({});
-  const [testingSkillId, setTestingSkillId] = useState<string | null>(null);
-  const [submittingTest, setSubmittingTest] = useState(false);
-  const [testResult, setTestResult] = useState<{ score: number; passed: boolean } | null>(null);
-  const [testError, setTestError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchAllProfileData();
+    const fetchProfile = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await apiClient<FullFreelancerProfile>('/users/me/profile');
+        if (res.success && res.data) {
+          setProfile(res.data);
+        } else {
+          setError(res.message || 'Không thể tải hồ sơ cá nhân.');
+        }
+      } catch (err: unknown) {
+        if (err instanceof ApiException) {
+          setError(err.error.message || 'Lỗi kết nối khi tải hồ sơ.');
+        } else {
+          setError('Không thể kết nối đến máy chủ.');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
   }, []);
 
-  const fetchAllProfileData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const [profileRes, skillsRes, verifiedRes] = await Promise.allSettled([
-        apiClient<FreelancerProfile>('/users/me/profile'),
-        apiClient<Skill[]>('/skills'),
-        apiClient<VerifiedSkill[]>('/skills/me/verified'),
-      ]);
-
-      if (profileRes.status === 'fulfilled' && profileRes.value.success && profileRes.value.data) {
-        const p = profileRes.value.data;
-        setProfile(p);
-        setHourlyRate(p.hourlyRate?.toString() || '');
-        setYearsOfExperience(p.yearsOfExperience?.toString() || '');
-        setIsAvailable(p.isAvailable ?? true);
-        setBio(p.bio || '');
-      }
-
-      if (skillsRes.status === 'fulfilled' && skillsRes.value.success && skillsRes.value.data) {
-        setSkillsCatalog(skillsRes.value.data);
-      }
-
-      if (verifiedRes.status === 'fulfilled' && verifiedRes.value.success && verifiedRes.value.data) {
-        setVerifiedSkills(verifiedRes.value.data);
-      }
-    } catch (err) {
-      console.error('Error loading profile data', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleSubmitProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      setSaving(true);
-      setError(null);
-      setSuccess(null);
-
-      const payload = {
-        hourlyRate: hourlyRate ? parseFloat(hourlyRate) : null,
-        yearsOfExperience: yearsOfExperience ? parseInt(yearsOfExperience) : null,
-        isAvailable,
-        bio,
-      };
-
-      const res = await apiClient('/users/me/profile', {
-        method: 'PUT',
-        body: JSON.stringify(payload),
-      });
-
-      if (res.success) {
-        setSuccess('Cập nhật thông tin hồ sơ thành công!');
-        setTimeout(() => setSuccess(null), 3000);
-      }
-    } catch (err: unknown) {
-      if (err instanceof ApiException) {
-        setError(err.error?.message || 'Không thể cập nhật hồ sơ.');
-      } else {
-        setError('Đã xảy ra lỗi khi lưu thông tin.');
-      }
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleStartAssessment = async (skillId: string) => {
-    try {
-      setTestingSkillId(skillId);
-      setTestError(null);
-      setTestResult(null);
-      setSelectedAnswers({});
-
-      const res = await apiClient<SkillTestAttempt>(`/skills/${skillId}/attempts`, {
-        method: 'POST',
-      });
-
-      if (res.success && res.data) {
-        setActiveAttempt(res.data);
-        try {
-          const qs: TestQuestion[] = JSON.parse(res.data.tasksJson || '[]');
-          setParsedQuestions(qs);
-        } catch {
-          setParsedQuestions([]);
-        }
-      }
-    } catch (err: unknown) {
-      if (err instanceof ApiException) {
-        alert(err.error?.message || 'Không thể bắt đầu bài kiểm tra.');
-      } else {
-        alert('Lỗi kết nối khi khởi tạo bài kiểm tra.');
-      }
-    } finally {
-      setTestingSkillId(null);
-    }
-  };
-
-  const handleSelectOption = (questionIdx: number, optionIdx: number) => {
-    setSelectedAnswers((prev) => ({
-      ...prev,
-      [questionIdx]: optionIdx,
-    }));
-  };
-
-  const handleSubmitTest = async () => {
-    if (!activeAttempt) return;
-
-    try {
-      setSubmittingTest(true);
-      setTestError(null);
-
-      const answersPayload = JSON.stringify(selectedAnswers);
-      const res = await apiClient<{ message: string; score: number }>(
-        `/skills/test/${activeAttempt.attemptId}/submit`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ userAnswersJson: answersPayload }),
-        }
-      );
-
-      if (res.success && res.data) {
-        const score = res.data.score;
-        const passed = score >= 70;
-        setTestResult({ score, passed });
-        const updatedVerified = await apiClient<VerifiedSkill[]>('/skills/me/verified');
-        if (updatedVerified.success && updatedVerified.data) {
-          setVerifiedSkills(updatedVerified.data);
-        }
-      }
-    } catch (err: unknown) {
-      if (err instanceof ApiException) {
-        setTestError(err.error?.message || 'Không thể nộp bài kiểm tra.');
-      } else {
-        setTestError('Lỗi kết nối khi nộp bài.');
-      }
-    } finally {
-      setSubmittingTest(false);
-    }
-  };
-
-  const formatCurrency = (amount?: number) => {
-    if (amount == null) return 'Chưa thiết lập';
-    return new Intl.NumberFormat('vi-VN', {
-      style: 'currency',
-      currency: 'VND',
-    }).format(amount);
-  };
-
-  const formatDate = (dateStr: string) => {
-    if (!dateStr) return '';
-    try {
-      return new Date(dateStr).toLocaleDateString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      });
-    } catch {
-      return dateStr;
-    }
-  };
-
-  const isSkillVerified = (skillName: string) => {
-    return verifiedSkills.some(
-      (v) => v.skillName.toLowerCase() === skillName.toLowerCase()
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="flex h-64 items-center justify-center text-xs text-text-muted">
+          Đang tải thông tin hồ sơ...
+        </div>
+      </DashboardLayout>
     );
-  };
+  }
 
   return (
     <DashboardLayout>
       <Head>
-        <title>Hồ sơ & Đánh giá năng lực | NASH</title>
+        <title>{user ? `${user.lastName} ${user.firstName}` : 'Hồ Sơ Năng Lực'} | NASH</title>
       </Head>
 
-      <div className="mx-auto max-w-6xl space-y-6 pb-12">
+      <div className="mx-auto max-w-5xl space-y-6 pb-12">
+        {/* Top Action Bar */}
+        <div className="flex items-center justify-between border-b border-border pb-4">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-2xs font-semibold text-emerald-700 border border-emerald-200">
+              <ShieldCheck className="h-3.5 w-3.5" /> Chế độ xem thực tế của Khách hàng
+            </span>
+          </div>
 
-        {/* Header */}
-        <div className="pb-4 border-b border-border">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            Hồ sơ cá nhân & Bài kiểm tra tay nghề
-          </h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-text-secondary">
-            Cập nhật kinh nghiệm, giá theo giờ và làm bài test để được hệ thống ưu tiên giới thiệu việc làm cho bạn.
-          </p>
+          <Link
+            href="/dashboard/profile/edit"
+            className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-4 py-2 text-xs font-semibold text-white shadow-xs hover:bg-primary-hover transition-colors"
+          >
+            <Edit3 className="h-3.5 w-3.5" />
+            Chỉnh sửa hồ sơ & portfolio
+          </Link>
         </div>
 
         {error && (
-          <div className="rounded-xl border border-rose-200 bg-danger-bg p-4 text-xs text-danger">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-xs font-medium text-rose-700">
             {error}
           </div>
         )}
 
-        {success && (
-          <div className="rounded-xl border border-emerald-200 bg-success-bg p-4 text-xs text-success">
-            {success}
-          </div>
-        )}
+        {/* Hero Header Card */}
+        <div className="rounded-2xl border border-border bg-surface p-6 shadow-xs">
+          <div className="flex flex-col gap-6 md:flex-row md:items-start md:justify-between">
+            {/* Left: Avatar + Title info */}
+            <div className="flex items-start gap-4">
+              <div className="relative">
+                <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-primary-soft text-2xl font-black text-primary border border-border">
+                  {user?.lastName?.[0] || 'U'}
+                </div>
+                {profile?.isAvailable && (
+                  <span
+                    className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full border-2 border-surface bg-emerald-500"
+                    title="Sẵn sàng nhận dự án"
+                  />
+                )}
+              </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-bold tracking-tight text-foreground">
+                    {user?.lastName} {user?.firstName}
+                  </h1>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100/80 px-2 py-0.5 text-3xs font-bold text-emerald-800">
+                    <CheckCircle2 className="h-3 w-3" /> Đã xác thực KYC
+                  </span>
+                </div>
 
-          {/* Left Column: Professional Information Form (7 cols) */}
-          <div className="lg:col-span-7 rounded-xl border border-border bg-surface p-6 shadow-2xs space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">
-                Thông tin hồ sơ
-              </h2>
-              <span className="text-2xs text-text-muted">Cập nhật theo thời gian thực</span>
+                <p className="text-xs font-semibold text-primary">
+                  {profile?.headline || 'Chuyên gia Freelancer trên nền tảng NASH'}
+                </p>
+
+                <div className="flex flex-wrap items-center gap-3 pt-1 text-2xs text-text-muted">
+                  {(profile?.city || profile?.country) && (
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="h-3 w-3" />
+                      {profile.city ? `${profile.city}, ` : ''}{profile.country}
+                    </span>
+                  )}
+                  {profile?.timezone && (
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="h-3 w-3" /> {profile.timezone}
+                    </span>
+                  )}
+                  {profile?.hoursPerWeek && (
+                    <span className="inline-flex items-center gap-1">
+                      <Calendar className="h-3 w-3" /> {profile.hoursPerWeek}
+                    </span>
+                  )}
+                </div>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmitProfile} className="space-y-4">
-
-              {/* Availability Switch */}
-              <div className="flex items-center justify-between p-3.5 rounded-lg border border-border bg-surface-subtle">
-                <div>
-                  <div className="text-xs font-bold text-foreground">Trạng thái nhận việc</div>
-                  <div className="text-2xs text-text-muted mt-0.5">
-                    {isAvailable ? 'Hồ sơ của bạn đang hiển thị cho Smart Match Top 3' : 'Đang tạm dừng nhận dự án mới'}
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setIsAvailable(!isAvailable)}
-                  className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors cursor-pointer ${isAvailable
-                      ? 'border-emerald-200 bg-success-bg text-success'
-                      : 'border-border bg-surface text-text-muted'
-                    }`}
-                >
-                  <span className={`h-2 w-2 rounded-full ${isAvailable ? 'bg-success animate-pulse' : 'bg-text-disabled'}`} />
-                  {isAvailable ? 'Sẵn sàng nhận việc' : 'Tạm dừng'}
-                </button>
-              </div>
-
-              {/* Hourly Rate & Experience */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">
-                    Mức thù lao mong muốn (VND / Giờ)
-                  </label>
-                  <input
-                    type="number"
-                    value={hourlyRate}
-                    onChange={(e) => setHourlyRate(e.target.value)}
-                    placeholder="Ví dụ: 500000"
-                    className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground font-mono focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                  <span className="text-2xs text-text-muted mt-1 block">
-                    Quy đổi: {formatCurrency(hourlyRate ? parseFloat(hourlyRate) : undefined)} / giờ
-                  </span>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-foreground mb-1">
-                    Số năm kinh nghiệm
-                  </label>
-                  <input
-                    type="number"
-                    value={yearsOfExperience}
-                    onChange={(e) => setYearsOfExperience(e.target.value)}
-                    placeholder="Ví dụ: 4"
-                    className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground font-mono focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                  />
-                  <span className="text-2xs text-text-muted mt-1 block">
-                    Được dùng để lọc điều kiện tối thiểu của dự án
-                  </span>
-                </div>
-              </div>
-
-              {/* Bio */}
+            {/* Right: Key Stats Card */}
+            <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border bg-surface-subtle p-4 md:flex-col md:items-end">
               <div>
-                <label className="block text-xs font-semibold text-foreground mb-1">
-                  Giới thiệu năng lực chuyên sâu (Bio)
-                </label>
-                <textarea
-                  rows={4}
-                  value={bio}
-                  onChange={(e) => setBio(e.target.value)}
-                  placeholder="Tóm tắt các dự án nổi bật, thế mạnh kiến trúc phần mềm, ngôn ngữ lập trình và phong cách làm việc..."
-                  className="w-full rounded-lg border border-border bg-surface p-3 text-xs text-foreground placeholder:text-text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                />
+                <div className="text-2xs text-text-muted">Mức thù lao</div>
+                <div className="text-lg font-black text-foreground">
+                  {profile?.hourlyRate ? `$${profile.hourlyRate}/giờ` : 'Thương lượng'}
+                </div>
               </div>
 
-              <div className="pt-2 flex justify-end">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rounded-lg bg-primary hover:bg-primary-hover px-5 py-2 text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
-                >
-                  {saving ? 'Đang lưu...' : 'Lưu thay đổi hồ sơ'}
-                </button>
+              <div className="md:text-right">
+                <div className="text-2xs text-text-muted">Job Success Score</div>
+                <div className="inline-flex items-center gap-1 text-sm font-bold text-emerald-600">
+                  <Sparkles className="h-3.5 w-3.5" /> {profile?.jobSuccessScore || 100}% Thành công
+                </div>
               </div>
 
-            </form>
+              <div className="md:text-right">
+                <div className="text-2xs text-text-muted">Kinh nghiệm</div>
+                <div className="text-xs font-bold text-foreground">
+                  {profile?.yearsOfExperience ? `${profile.yearsOfExperience} năm thực chiến` : 'Chưa cập nhật'}
+                </div>
+              </div>
+            </div>
           </div>
 
-          {/* Right Column: Verified Skills & Test Catalog (5 cols) */}
-          <div className="lg:col-span-5 space-y-6">
-
-            {/* Verified Skills Section */}
-            <div className="rounded-xl border border-border bg-surface p-6 shadow-2xs space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                  Huy hiệu kỹ năng đã xác thực ({verifiedSkills.length})
-                </span>
-                <span className="text-2xs font-semibold text-success bg-success-bg px-2 py-0.5 rounded border border-emerald-200">
-                  Verified
-                </span>
-              </div>
-
-              {verifiedSkills.length === 0 ? (
-                <div className="p-4 text-center rounded-lg bg-surface-subtle border border-border">
-                  <Award className="mx-auto h-6 w-6 text-text-muted opacity-50 mb-1" />
-                  <p className="text-xs text-text-secondary font-medium">Chưa có chứng nhận nào</p>
-                  <p className="text-2xs text-text-muted mt-0.5">
-                    Hãy làm bài kiểm tra bên dưới để nhận huy hiệu xác thực.
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {verifiedSkills.map((vs) => (
-                    <div
-                      key={vs.id}
-                      className="p-3 rounded-lg border border-border bg-surface-subtle flex items-center justify-between text-xs"
-                    >
-                      <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-success" />
-                        <span className="font-bold text-foreground">{vs.skillName}</span>
-                      </div>
-                      <span className="text-2xs text-text-muted">
-                        Ngày cấp: {formatDate(vs.verifiedAt)}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+          {/* Social Links Bar */}
+          {(profile?.githubUrl || profile?.linkedinUrl || profile?.websiteUrl) && (
+            <div className="mt-5 flex items-center gap-3 border-t border-border/60 pt-4 text-xs">
+              {profile.githubUrl && (
+                <a
+                  href={profile.githubUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1 text-text-secondary hover:text-foreground transition-colors"
+                >
+                  <FolderGit2 className="h-3.5 w-3.5" /> GitHub <ExternalLink className="h-2.5 w-2.5" />
+                </a>
+              )}
+              {profile.linkedinUrl && (
+                <a
+                  href={profile.linkedinUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1 text-text-secondary hover:text-foreground transition-colors"
+                >
+                  <Globe className="h-3.5 w-3.5" /> LinkedIn <ExternalLink className="h-2.5 w-2.5" />
+                </a>
+              )}
+              {profile.websiteUrl && (
+                <a
+                  href={profile.websiteUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1 text-text-secondary hover:text-foreground transition-colors"
+                >
+                  <Globe className="h-3.5 w-3.5" /> Website <ExternalLink className="h-2.5 w-2.5" />
+                </a>
               )}
             </div>
+          )}
+        </div>
 
-            {/* Available Tests Catalog */}
-            <div className="rounded-xl border border-border bg-surface p-6 shadow-2xs space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-border">
-                <span className="text-xs font-bold uppercase tracking-wider text-foreground">
-                  Bài kiểm tra tiêu chuẩn hóa
-                </span>
-                <span className="text-2xs text-text-muted">Có tính giờ</span>
+        {/* 2-Column Main Layout */}
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          {/* Main Left Column (2 Cols) */}
+          <div className="space-y-6 lg:col-span-2">
+            {/* Overview / Bio */}
+            <div className="rounded-xl border border-border bg-surface p-6 shadow-xs space-y-3">
+              <h2 className="text-sm font-bold text-foreground">Giới Thiệu Bản Thân & Chuyên Môn</h2>
+              <div className="text-xs leading-relaxed text-text-secondary whitespace-pre-line">
+                {profile?.bio || 'Chưa cập nhật đoạn giới thiệu.'}
+              </div>
+            </div>
+
+            {/* Portfolio Showcase Grid */}
+            <div className="rounded-xl border border-border bg-surface p-6 shadow-xs space-y-4">
+              <div className="flex items-center justify-between border-b border-border/60 pb-3">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="h-4 w-4 text-primary" />
+                  <h2 className="text-sm font-bold text-foreground">Dự Án Tiêu Biểu ({profile?.portfolioItems?.length || 0})</h2>
+                </div>
+                <Link href="/dashboard/profile/edit" className="text-2xs font-semibold text-primary hover:underline">
+                  + Quản lý dự án
+                </Link>
               </div>
 
-              <div className="space-y-3">
-                {skillsCatalog.map((skill) => {
-                  const verified = isSkillVerified(skill.name);
-                  const isStarting = testingSkillId === skill.id;
-
-                  return (
+              {(!profile?.portfolioItems || profile.portfolioItems.length === 0) ? (
+                <p className="text-2xs text-text-muted italic py-4 text-center">Chưa có dự án nào được đăng tải.</p>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  {profile.portfolioItems.map((item) => (
                     <div
-                      key={skill.id}
-                      className="p-3.5 rounded-lg border border-border bg-surface hover:border-brand-300 transition-colors flex flex-col justify-between gap-3"
+                      key={item.id}
+                      className="group flex flex-col justify-between rounded-xl border border-border bg-surface-subtle p-4 transition-all hover:border-primary/50 space-y-3"
                     >
-                      <div>
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-bold text-foreground">{skill.name}</h4>
-                          {verified ? (
-                            <span className="text-2xs font-semibold text-success bg-success-bg px-2 py-0.5 rounded border border-emerald-200 flex items-center gap-1">
-                              <Check className="h-3 w-3" /> Đã Đạt
-                            </span>
-                          ) : (
-                            <span className="text-2xs text-text-muted">Điểm sàn: 70%</span>
+                      <div className="space-y-1.5">
+                        <div className="flex items-start justify-between">
+                          <h4 className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+                            {item.title}
+                          </h4>
+                          {item.liveUrl && (
+                            <a
+                              href={item.liveUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-text-muted hover:text-primary transition-colors"
+                              title="Xem Demo trực tiếp"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" />
+                            </a>
                           )}
                         </div>
-                        <p className="mt-1 text-2xs text-text-secondary line-clamp-2">
-                          {skill.description}
+                        <p className="text-3xs font-semibold text-primary">{item.role}</p>
+                        <p className="text-2xs text-text-secondary line-clamp-3 leading-relaxed">
+                          {item.description}
                         </p>
                       </div>
 
-                      <div className="pt-2 border-t border-border flex items-center justify-between">
-                        <span className="text-2xs text-text-muted flex items-center gap-1">
-                          <Clock className="h-3 w-3" /> 30–45 phút
-                        </span>
-
-                        <button
-                          onClick={() => handleStartAssessment(skill.id)}
-                          disabled={isStarting}
-                          className="rounded-md bg-foreground hover:bg-navy-800 text-white text-2xs font-semibold px-3 py-1.5 transition-colors cursor-pointer"
-                        >
-                          {isStarting ? 'Đang chuẩn bị...' : verified ? 'Làm lại để nâng điểm' : 'Bắt đầu làm test'}
-                        </button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-      {/* Interactive Assessment Modal */}
-      {activeAttempt && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/70 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-2xl max-h-[90vh] flex flex-col rounded-xl border border-border bg-surface shadow-2xl animate-in fade-in zoom-in-95 overflow-hidden">
-
-            {/* Modal Header */}
-            <div className="p-5 border-b border-border flex items-center justify-between bg-surface-subtle">
-              <div>
-                <span className="text-2xs font-bold uppercase tracking-wider text-primary">
-                  Bài Đánh Giá Năng Lực Chuẩn Hóa
-                </span>
-                <h3 className="text-sm font-bold text-foreground mt-0.5">
-                  {activeAttempt.title}
-                </h3>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 rounded-md bg-surface px-2.5 py-1 text-xs font-mono font-bold text-foreground border border-border">
-                  <Timer className="h-3.5 w-3.5 text-primary" />
-                  {activeAttempt.timeLimitMinutes} phút
-                </div>
-                {!testResult && (
-                  <button
-                    onClick={() => setActiveAttempt(null)}
-                    className="p-1 text-text-muted hover:text-foreground cursor-pointer"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Modal Body */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-
-              {testError && (
-                <div className="rounded-lg bg-danger-bg p-3 text-xs text-danger border border-rose-200">
-                  {testError}
-                </div>
-              )}
-
-              {testResult ? (
-                <div className="p-6 text-center space-y-3">
-                  <div className={`mx-auto h-12 w-12 rounded-full flex items-center justify-center ${testResult.passed ? 'bg-success-bg text-success' : 'bg-danger-bg text-danger'}`}>
-                    {testResult.passed ? <CheckCircle2 className="h-6 w-6" /> : <AlertCircle className="h-6 w-6" />}
-                  </div>
-
-                  <h4 className="text-base font-bold text-foreground">
-                    {testResult.passed ? 'Chúc mừng! Bạn đã vượt qua bài kiểm tra' : 'Rất tiếc! Điểm số chưa đạt yêu cầu'}
-                  </h4>
-
-                  <div className="text-2xl font-bold font-mono text-foreground">
-                    Điểm số: {testResult.score}/100
-                  </div>
-
-                  <p className="text-xs text-text-secondary max-w-sm mx-auto">
-                    {testResult.passed
-                      ? 'Huy hiệu Verified Skill đã được kích hoạt trên hồ sơ của bạn và sẵn sàng cho Smart Match.'
-                      : 'Bạn cần tối thiểu 70 điểm để được cấp chứng nhận xác thực. Hãy ôn luyện và thử lại sau.'}
-                  </p>
-
-                  <div className="pt-4">
-                    <button
-                      onClick={() => setActiveAttempt(null)}
-                      className="rounded-lg bg-primary hover:bg-primary-hover px-5 py-2 text-xs font-semibold text-white transition-colors cursor-pointer"
-                    >
-                      Đóng cửa sổ
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {parsedQuestions.map((q, qIdx) => (
-                    <div key={qIdx} className="space-y-2.5">
-                      <div className="text-xs font-bold text-foreground flex items-start gap-2">
-                        <span className="text-primary font-mono">Q{qIdx + 1}.</span>
-                        <span>{q.question}</span>
-                      </div>
-
-                      <div className="space-y-1.5 pl-6">
-                        {q.options?.map((opt, optIdx) => {
-                          const isSelected = selectedAnswers[qIdx] === optIdx;
-
-                          return (
-                            <label
-                              key={optIdx}
-                              onClick={() => handleSelectOption(qIdx, optIdx)}
-                              className={`flex items-center gap-3 p-2.5 rounded-lg border text-xs cursor-pointer transition-colors ${isSelected
-                                  ? 'border-primary bg-primary-soft text-foreground font-medium'
-                                  : 'border-border bg-surface hover:bg-surface-subtle text-text-secondary'
-                                }`}
-                            >
-                              <input
-                                type="radio"
-                                name={`q-${qIdx}`}
-                                checked={isSelected}
-                                onChange={() => handleSelectOption(qIdx, optIdx)}
-                                className="h-3.5 w-3.5 text-primary border-border focus:ring-0"
-                              />
-                              <span>{opt}</span>
-                            </label>
-                          );
-                        })}
+                      <div className="flex flex-wrap gap-1 pt-2 border-t border-border/60">
+                        {item.techStack?.map((t, idx) => (
+                          <span
+                            key={idx}
+                            className="rounded-md bg-surface px-1.5 py-0.5 text-3xs font-medium text-foreground border border-border"
+                          >
+                            {t}
+                          </span>
+                        ))}
                       </div>
                     </div>
                   ))}
                 </div>
               )}
-
             </div>
 
-            {/* Modal Footer */}
-            {!testResult && (
-              <div className="p-4 border-t border-border bg-surface flex items-center justify-between">
-                <span className="text-2xs text-text-muted">
-                  Đã trả lời: {Object.keys(selectedAnswers).length}/{parsedQuestions.length} câu
-                </span>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setActiveAttempt(null)}
-                    className="rounded-lg border border-border bg-surface px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle cursor-pointer"
-                  >
-                    Hủy bỏ
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSubmitTest}
-                    disabled={submittingTest}
-                    className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-1.5 text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
-                  >
-                    {submittingTest ? 'Đang chấm điểm...' : 'Nộp bài kiểm tra'}
-                  </button>
-                </div>
+            {/* Work Experiences Timeline */}
+            <div className="rounded-xl border border-border bg-surface p-6 shadow-xs space-y-4">
+              <div className="flex items-center gap-2 border-b border-border/60 pb-3">
+                <Calendar className="h-4 w-4 text-primary" />
+                <h2 className="text-sm font-bold text-foreground">Kinh Nghiệm Làm Việc Thực Chiến</h2>
               </div>
-            )}
 
+              {(!profile?.workExperiences || profile.workExperiences.length === 0) ? (
+                <p className="text-2xs text-text-muted italic">Chưa có kinh nghiệm làm việc nào được liệt kê.</p>
+              ) : (
+                <div className="space-y-4">
+                  {profile.workExperiences.map((exp) => (
+                    <div key={exp.id} className="relative pl-6 border-l-2 border-primary/30 space-y-1">
+                      <div className="absolute -left-1.5 top-1 h-3 w-3 rounded-full bg-primary" />
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-foreground">{exp.position}</span>
+                        <span className="text-3xs text-text-muted">
+                          {new Date(exp.startDate).toLocaleDateString('vi-VN')} -{' '}
+                          {exp.isCurrentRole ? 'Hiện tại' : (exp.endDate ? new Date(exp.endDate).toLocaleDateString('vi-VN') : '')}
+                        </span>
+                      </div>
+                      <div className="text-2xs font-semibold text-primary">{exp.companyName}</div>
+                      <p className="text-2xs text-text-secondary leading-relaxed pt-1">{exp.description}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right Sidebar Column (1 Col) */}
+          <div className="space-y-6">
+            {/* NASH Verified Skills */}
+            <div className="rounded-xl border border-border bg-surface p-5 shadow-xs space-y-3">
+              <div className="flex items-center justify-between border-b border-border/60 pb-2.5">
+                <div className="flex items-center gap-2">
+                  <Award className="h-4 w-4 text-primary" />
+                  <h3 className="text-xs font-bold text-foreground">Kỹ Năng Đã Xác Thực</h3>
+                </div>
+                <Link href="/dashboard/skills" className="text-3xs font-semibold text-primary hover:underline">
+                  Thi nâng điểm
+                </Link>
+              </div>
+
+              {(!profile?.skills || profile.skills.length === 0) ? (
+                <div className="py-2 text-center text-2xs text-text-muted">
+                  Chưa có kỹ năng nào vượt qua bài test.
+                  <div className="mt-2">
+                    <Link
+                      href="/dashboard/skills"
+                      className="rounded-lg bg-primary-soft px-3 py-1.5 text-2xs font-bold text-primary hover:bg-primary-soft/80"
+                    >
+                      Bắt đầu làm bài thi
+                    </Link>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {profile.skills.map((skillName, idx) => (
+                    <span
+                      key={idx}
+                      className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-2xs font-bold text-emerald-800 border border-emerald-200"
+                    >
+                      <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                      {skillName}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Certifications */}
+            <div className="rounded-xl border border-border bg-surface p-5 shadow-xs space-y-3">
+              <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
+                <ShieldCheck className="h-4 w-4 text-primary" />
+                <h3 className="text-xs font-bold text-foreground">Chứng Chỉ Quốc Tế</h3>
+              </div>
+
+              {(!profile?.certifications || profile.certifications.length === 0) ? (
+                <p className="text-2xs text-text-muted italic">Chưa có chứng chỉ nào.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {profile.certifications.map((cert) => (
+                    <div key={cert.id} className="text-xs space-y-0.5">
+                      <div className="font-bold text-foreground">{cert.name}</div>
+                      <div className="text-2xs text-text-secondary">{cert.issuer}</div>
+                      {cert.credentialUrl && (
+                        <a
+                          href={cert.credentialUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-0.5 text-3xs text-primary underline"
+                        >
+                          Xác thực chứng chỉ <ExternalLink className="h-2.5 w-2.5" />
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Education */}
+            <div className="rounded-xl border border-border bg-surface p-5 shadow-xs space-y-3">
+              <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
+                <GraduationCap className="h-4 w-4 text-primary" />
+                <h3 className="text-xs font-bold text-foreground">Học Vấn</h3>
+              </div>
+
+              {(!profile?.educations || profile.educations.length === 0) ? (
+                <p className="text-2xs text-text-muted italic">Chưa cập nhật học vấn.</p>
+              ) : (
+                <div className="space-y-2.5">
+                  {profile.educations.map((edu) => (
+                    <div key={edu.id} className="text-xs space-y-0.5">
+                      <div className="font-bold text-foreground">{edu.school}</div>
+                      <div className="text-2xs text-text-secondary">{edu.degree} - {edu.fieldOfStudy}</div>
+                      <div className="text-3xs text-text-muted">{edu.startYear} - {edu.endYear || 'Hiện tại'}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Languages */}
+            <div className="rounded-xl border border-border bg-surface p-5 shadow-xs space-y-3">
+              <div className="flex items-center gap-2 border-b border-border/60 pb-2.5">
+                <Languages className="h-4 w-4 text-primary" />
+                <h3 className="text-xs font-bold text-foreground">Ngôn Ngữ Giao Tiếp</h3>
+              </div>
+
+              {(!profile?.languages || profile.languages.length === 0) ? (
+                <p className="text-2xs text-text-muted italic">Chưa cập nhật ngôn ngữ.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {profile.languages.map((l) => (
+                    <div key={l.id} className="flex items-center justify-between text-xs">
+                      <span className="font-semibold text-foreground">{l.language}</span>
+                      <span className="text-2xs text-text-muted">{l.proficiencyLevel}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      )}
-
+      </div>
     </DashboardLayout>
   );
 }

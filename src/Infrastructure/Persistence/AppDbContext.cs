@@ -16,6 +16,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
     public DbSet<Project> Projects { get; set; } = null!;
     public DbSet<ProjectSkillRequirement> ProjectSkillRequirements { get; set; } = null!;
     public DbSet<FreelancerProfile> FreelancerProfiles { get; set; } = null!;
+    public DbSet<PortfolioItem> PortfolioItems { get; set; } = null!;
+    public DbSet<WorkExperience> WorkExperiences { get; set; } = null!;
+    public DbSet<Education> Educations { get; set; } = null!;
+    public DbSet<Certification> Certifications { get; set; } = null!;
+    public DbSet<LanguageProficiency> Languages { get; set; } = null!;
     public DbSet<Match> Matches { get; set; } = null!;
     
     // Phase 5: Handshake
@@ -143,6 +148,31 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
             entity.HasOne(e => e.User)
                   .WithOne(u => u.FreelancerProfile)
                   .HasForeignKey<FreelancerProfile>(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.PortfolioItems)
+                  .WithOne(p => p.FreelancerProfile)
+                  .HasForeignKey(p => p.FreelancerProfileId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.WorkExperiences)
+                  .WithOne(w => w.FreelancerProfile)
+                  .HasForeignKey(w => w.FreelancerProfileId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.Educations)
+                  .WithOne(ed => ed.FreelancerProfile)
+                  .HasForeignKey(ed => ed.FreelancerProfileId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.Certifications)
+                  .WithOne(c => c.FreelancerProfile)
+                  .HasForeignKey(c => c.FreelancerProfileId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasMany(e => e.Languages)
+                  .WithOne(l => l.FreelancerProfile)
+                  .HasForeignKey(l => l.FreelancerProfileId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 
