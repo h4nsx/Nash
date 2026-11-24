@@ -9,6 +9,12 @@ primary_region = 'sin'
 [build]
   dockerfile = 'Dockerfile'
 
+[env]
+  ASPNETCORE_ENVIRONMENT = 'Production'
+  ConnectionStrings__Default = 'Host=aws-1-ap-south-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.duusisbfjjlloujtotfk;Password=jiyunFT3VoplKEYu;Ssl Mode=Require;Trust Server Certificate=true;'
+  Cors__AllowedOrigins__0 = 'https://nash-freelancer.netlify.app'
+  Cors__AllowedOrigins__1 = 'http://localhost:3000'
+
 [http_service]
   internal_port = 8080
   force_https = true
