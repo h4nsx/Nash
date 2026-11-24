@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Application.Common.Interfaces;
 using Domain.Entities;
 using Domain.Enums;
@@ -27,14 +28,37 @@ public class ProjectService : IProjectService
             ClientId = Guid.Parse(clientId),
             Title = request.Title,
             Description = request.Description,
+            Category = request.Category ?? string.Empty,
+            SubCategory = request.SubCategory ?? string.Empty,
+            PricingType = request.PricingType,
             BudgetMin = request.BudgetMin,
             BudgetMax = request.BudgetMax,
-            StartDate = request.StartDate,
-            EndDate = request.EndDate,
+            HourlyRateMin = request.HourlyRateMin,
+            HourlyRateMax = request.HourlyRateMax,
+            Scope = request.Scope,
+            ExperienceLevel = request.ExperienceLevel,
+            LocationPreference = string.IsNullOrWhiteSpace(request.LocationPreference) ? "Worldwide" : request.LocationPreference,
+            PreferredLanguage = string.IsNullOrWhiteSpace(request.PreferredLanguage) ? "Any" : request.PreferredLanguage,
+            StartDate = request.StartDate.HasValue ? request.StartDate.Value.ToUniversalTime() : null,
+            EndDate = request.EndDate.HasValue ? request.EndDate.Value.ToUniversalTime() : null,
+            FileAttachmentsJson = JsonSerializer.Serialize(request.FileAttachments ?? new List<string>()),
             Status = ProjectStatus.Draft,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
+
+        if (request.SkillRequirements != null && request.SkillRequirements.Any())
+        {
+            foreach (var req in request.SkillRequirements)
+            {
+                project.SkillRequirements.Add(new ProjectSkillRequirement
+                {
+                    SkillId = req.SkillId,
+                    IsMandatory = req.IsMandatory,
+                    MinimumExperienceYears = req.MinimumExperienceYears
+                });
+            }
+        }
 
         _context.Projects.Add(project);
         await _context.SaveChangesAsync();
@@ -63,10 +87,20 @@ public class ProjectService : IProjectService
 
         project.Title = request.Title;
         project.Description = request.Description;
+        project.Category = request.Category ?? string.Empty;
+        project.SubCategory = request.SubCategory ?? string.Empty;
+        project.PricingType = request.PricingType;
         project.BudgetMin = request.BudgetMin;
         project.BudgetMax = request.BudgetMax;
-        project.StartDate = request.StartDate;
-        project.EndDate = request.EndDate;
+        project.HourlyRateMin = request.HourlyRateMin;
+        project.HourlyRateMax = request.HourlyRateMax;
+        project.Scope = request.Scope;
+        project.ExperienceLevel = request.ExperienceLevel;
+        project.LocationPreference = string.IsNullOrWhiteSpace(request.LocationPreference) ? "Worldwide" : request.LocationPreference;
+        project.PreferredLanguage = string.IsNullOrWhiteSpace(request.PreferredLanguage) ? "Any" : request.PreferredLanguage;
+        project.StartDate = request.StartDate.HasValue ? request.StartDate.Value.ToUniversalTime() : null;
+        project.EndDate = request.EndDate.HasValue ? request.EndDate.Value.ToUniversalTime() : null;
+        project.FileAttachmentsJson = JsonSerializer.Serialize(request.FileAttachments ?? new List<string>());
         project.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -79,7 +113,7 @@ public class ProjectService : IProjectService
         var project = await _context.Projects
             .Include(p => p.SkillRequirements)
             .FirstOrDefaultAsync(p => p.Id == projectId && p.ClientId == Guid.Parse(clientId));
-            
+
         if (project == null)
         {
             return (false, new[] { "Không tìm thấy dự án hoặc bạn không có quyền truy cập." });
@@ -90,24 +124,23 @@ public class ProjectService : IProjectService
             return (false, new[] { "Chỉ có thể thay đổi yêu cầu kỹ năng khi dự án ở trạng thái Nháp (Draft)." });
         }
 
-        var skillExists = await _context.Skills.AnyAsync(s => s.Id == request.SkillId && s.IsActive);
-        if (!skillExists)
+        var skill = await _context.Skills.FindAsync(request.SkillId);
+        if (skill == null || !skill.IsActive)
         {
-            return (false, new[] { "Kỹ năng không tồn tại hoặc không khả dụng." });
+            return (false, new[] { "Kỹ năng không tồn tại hoặc đã bị vô hiệu hóa." });
         }
 
-        var requirement = project.SkillRequirements.FirstOrDefault(r => r.SkillId == request.SkillId);
-        if (requirement != null)
+        var existingReq = project.SkillRequirements.FirstOrDefault(r => r.SkillId == request.SkillId);
+        if (existingReq != null)
         {
-            // Update existing
-            requirement.IsMandatory = request.IsMandatory;
-            requirement.MinimumExperienceYears = request.MinimumExperienceYears;
+            existingReq.IsMandatory = request.IsMandatory;
+            existingReq.MinimumExperienceYears = request.MinimumExperienceYears;
         }
         else
         {
-            // Add new
             project.SkillRequirements.Add(new ProjectSkillRequirement
             {
+                ProjectId = project.Id,
                 SkillId = request.SkillId,
                 IsMandatory = request.IsMandatory,
                 MinimumExperienceYears = request.MinimumExperienceYears
@@ -120,12 +153,12 @@ public class ProjectService : IProjectService
         return (true, Array.Empty<string>());
     }
 
-    public async Task<(bool Success, string[] Errors)> RemoveSkillRequirementAsync(Guid projectId, Guid requirementId, string clientId)
+    public async Task<(bool Success, string[] Errors)> RemoveSkillRequirementAsync(Guid projectId, Guid skillId, string clientId)
     {
         var project = await _context.Projects
             .Include(p => p.SkillRequirements)
             .FirstOrDefaultAsync(p => p.Id == projectId && p.ClientId == Guid.Parse(clientId));
-            
+
         if (project == null)
         {
             return (false, new[] { "Không tìm thấy dự án hoặc bạn không có quyền truy cập." });
@@ -136,15 +169,13 @@ public class ProjectService : IProjectService
             return (false, new[] { "Chỉ có thể thay đổi yêu cầu kỹ năng khi dự án ở trạng thái Nháp (Draft)." });
         }
 
-        var requirement = project.SkillRequirements.FirstOrDefault(r => r.Id == requirementId);
-        if (requirement == null)
+        var req = project.SkillRequirements.FirstOrDefault(r => r.SkillId == skillId);
+        if (req != null)
         {
-            return (false, new[] { "Không tìm thấy yêu cầu kỹ năng này trong dự án." });
+            _context.ProjectSkillRequirements.Remove(req);
+            project.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
         }
-
-        project.SkillRequirements.Remove(requirement);
-        project.UpdatedAt = DateTime.UtcNow;
-        await _context.SaveChangesAsync();
 
         return (true, Array.Empty<string>());
     }
@@ -154,7 +185,7 @@ public class ProjectService : IProjectService
         var project = await _context.Projects
             .Include(p => p.SkillRequirements)
             .FirstOrDefaultAsync(p => p.Id == projectId && p.ClientId == Guid.Parse(clientId));
-            
+
         if (project == null)
         {
             return (false, new[] { "Không tìm thấy dự án hoặc bạn không có quyền truy cập." });
@@ -162,12 +193,17 @@ public class ProjectService : IProjectService
 
         if (project.Status != ProjectStatus.Draft)
         {
-            return (false, new[] { "Dự án không ở trạng thái Nháp (Draft) nên không thể xuất bản." });
+            return (false, new[] { "Dự án đã được xuất bản hoặc không ở trạng thái Nháp (Draft)." });
         }
 
-        if (!project.SkillRequirements.Any(r => r.IsMandatory))
+        if (string.IsNullOrWhiteSpace(project.Title) || string.IsNullOrWhiteSpace(project.Description))
         {
-            return (false, new[] { "Không thể xuất bản dự án nếu chưa có ít nhất một yêu cầu kỹ năng bắt buộc." });
+            return (false, new[] { "Tiêu đề và mô tả dự án không được để trống." });
+        }
+
+        if (!project.SkillRequirements.Any())
+        {
+            return (false, new[] { "Dự án phải có ít nhất một yêu cầu kỹ năng trước khi xuất bản." });
         }
 
         project.Status = ProjectStatus.Published;
@@ -178,86 +214,110 @@ public class ProjectService : IProjectService
         return (true, Array.Empty<string>());
     }
 
-    public async Task<List<ProjectDto>> GetClientProjectsAsync(string clientId)
+    public async Task<(bool Success, string[] Errors)> CloseProjectAsync(Guid projectId, string clientId)
     {
-        return await _context.Projects
-            .Where(p => p.ClientId == Guid.Parse(clientId))
-            .OrderByDescending(p => p.CreatedAt)
-            .Select(p => new ProjectDto
-            {
-                Id = p.Id,
-                Title = p.Title,
-                Description = p.Description,
-                BudgetMin = p.BudgetMin,
-                BudgetMax = p.BudgetMax,
-                StartDate = p.StartDate,
-                EndDate = p.EndDate,
-                Status = p.Status,
-                CreatedAt = p.CreatedAt,
-                UpdatedAt = p.UpdatedAt
-            })
-            .ToListAsync();
-    }
+        var project = await _context.Projects
+            .FirstOrDefaultAsync(p => p.Id == projectId && p.ClientId == Guid.Parse(clientId));
 
-    public async Task<List<ProjectDto>> GetPublishedProjectsAsync()
-    {
-        return await _context.Projects
-            .Include(p => p.SkillRequirements).ThenInclude(r => r.Skill)
-            .Where(p => p.Status == ProjectStatus.Published)
-            .OrderByDescending(p => p.CreatedAt)
-            .Select(p => new ProjectDto
-            {
-                Id = p.Id,
-                Title = p.Title,
-                Description = p.Description,
-                BudgetMin = p.BudgetMin,
-                BudgetMax = p.BudgetMax,
-                StartDate = p.StartDate,
-                EndDate = p.EndDate,
-                Status = p.Status,
-                CreatedAt = p.CreatedAt,
-                UpdatedAt = p.UpdatedAt,
-                SkillRequirements = p.SkillRequirements.Select(r => new ProjectSkillRequirementDto
-                {
-                    Id = r.Id,
-                    SkillId = r.SkillId,
-                    SkillName = r.Skill.Name,
-                    IsMandatory = r.IsMandatory,
-                    MinimumExperienceYears = r.MinimumExperienceYears
-                }).ToList()
-            })
-            .ToListAsync();
+        if (project == null)
+        {
+            return (false, new[] { "Không tìm thấy dự án hoặc bạn không có quyền truy cập." });
+        }
+
+        if (project.Status == ProjectStatus.Completed || project.Status == ProjectStatus.Cancelled)
+        {
+            return (false, new[] { "Dự án đã hoàn thành hoặc đã đóng." });
+        }
+
+        project.Status = ProjectStatus.Cancelled;
+        project.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+
+        return (true, Array.Empty<string>());
     }
 
     public async Task<ProjectDto?> GetProjectByIdAsync(Guid projectId)
     {
-        var project = await _context.Projects
+        var p = await _context.Projects
+            .Include(x => x.SkillRequirements)
+                .ThenInclude(r => r.Skill)
+            .FirstOrDefaultAsync(x => x.Id == projectId);
+
+        if (p == null) return null;
+
+        return MapToProjectDto(p);
+    }
+
+    public async Task<List<ProjectDto>> GetClientProjectsAsync(string clientId)
+    {
+        var projects = await _context.Projects
             .Include(p => p.SkillRequirements)
-            .ThenInclude(r => r.Skill)
-            .FirstOrDefaultAsync(p => p.Id == projectId);
+                .ThenInclude(r => r.Skill)
+            .Where(p => p.ClientId == Guid.Parse(clientId))
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
 
-        if (project == null) return null;
+        return projects.Select(MapToProjectDto).ToList();
+    }
 
+    public async Task<List<ProjectDto>> GetPublishedProjectsAsync()
+    {
+        var projects = await _context.Projects
+            .Include(p => p.SkillRequirements)
+                .ThenInclude(r => r.Skill)
+            .Where(p => p.Status == ProjectStatus.Published)
+            .OrderByDescending(p => p.CreatedAt)
+            .ToListAsync();
+
+        return projects.Select(MapToProjectDto).ToList();
+    }
+
+    private static ProjectDto MapToProjectDto(Project p)
+    {
         return new ProjectDto
         {
-            Id = project.Id,
-            Title = project.Title,
-            Description = project.Description,
-            BudgetMin = project.BudgetMin,
-            BudgetMax = project.BudgetMax,
-            StartDate = project.StartDate,
-            EndDate = project.EndDate,
-            Status = project.Status,
-            CreatedAt = project.CreatedAt,
-            UpdatedAt = project.UpdatedAt,
-            SkillRequirements = project.SkillRequirements.Select(r => new ProjectSkillRequirementDto
+            Id = p.Id,
+            Title = p.Title,
+            Description = p.Description,
+            Category = p.Category,
+            SubCategory = p.SubCategory,
+            PricingType = p.PricingType,
+            BudgetMin = p.BudgetMin,
+            BudgetMax = p.BudgetMax,
+            HourlyRateMin = p.HourlyRateMin,
+            HourlyRateMax = p.HourlyRateMax,
+            Scope = p.Scope,
+            ExperienceLevel = p.ExperienceLevel,
+            LocationPreference = p.LocationPreference,
+            PreferredLanguage = p.PreferredLanguage,
+            StartDate = p.StartDate,
+            EndDate = p.EndDate,
+            FileAttachments = DeserializeList(p.FileAttachmentsJson),
+            Status = p.Status,
+            CreatedAt = p.CreatedAt,
+            UpdatedAt = p.UpdatedAt,
+            SkillRequirements = p.SkillRequirements.Select(r => new ProjectSkillRequirementDto
             {
                 Id = r.Id,
                 SkillId = r.SkillId,
-                SkillName = r.Skill.Name,
+                SkillName = r.Skill != null ? r.Skill.Name : string.Empty,
                 IsMandatory = r.IsMandatory,
                 MinimumExperienceYears = r.MinimumExperienceYears
             }).ToList()
         };
+    }
+
+    private static List<string> DeserializeList(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return new List<string>();
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
+        }
+        catch
+        {
+            return new List<string>();
+        }
     }
 }

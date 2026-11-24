@@ -11,11 +11,27 @@ public class Project
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     
+    public string Category { get; set; } = string.Empty;
+    public string SubCategory { get; set; } = string.Empty;
+    
+    public PricingType PricingType { get; set; } = PricingType.FixedPrice;
+    
     public decimal? BudgetMin { get; set; }
     public decimal? BudgetMax { get; set; }
     
+    public decimal? HourlyRateMin { get; set; }
+    public decimal? HourlyRateMax { get; set; }
+    
+    public ProjectScope Scope { get; set; } = ProjectScope.Medium;
+    public ExperienceLevel ExperienceLevel { get; set; } = ExperienceLevel.Intermediate;
+    
+    public string LocationPreference { get; set; } = "Worldwide";
+    public string PreferredLanguage { get; set; } = "Any";
+    
     public DateTime? StartDate { get; set; }
     public DateTime? EndDate { get; set; }
+    
+    public string FileAttachmentsJson { get; set; } = "[]";
     
     public ProjectStatus Status { get; set; } = ProjectStatus.Draft;
     

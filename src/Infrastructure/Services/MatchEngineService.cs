@@ -94,21 +94,35 @@ public class MatchEngineService : IMatchEngineService
 
             // Experience (15%)
             var maxExpReq = project.SkillRequirements.Max(r => r.MinimumExperienceYears) ?? 0;
-            if (maxExpReq > 0)
+            // Also take project.ExperienceLevel into account (Entry: 1 yr, Intermediate: 3 yrs, Expert: 5 yrs)
+            int levelExpReq = project.ExperienceLevel switch
             {
-                if (profile.YearsOfExperience >= maxExpReq)
-                {
-                    score += 15m;
-                    reasons.Add("Kinh nghiệm làm việc đáp ứng yêu cầu.");
-                }
+                ExperienceLevel.Expert => 5,
+                ExperienceLevel.Intermediate => 3,
+                _ => 1
+            };
+            int effectiveExpReq = Math.Max(maxExpReq, levelExpReq);
+
+            if (profile.YearsOfExperience.HasValue && profile.YearsOfExperience.Value >= effectiveExpReq)
+            {
+                score += 15m;
+                reasons.Add($"Kinh nghiệm ({profile.YearsOfExperience} năm) đạt yêu cầu dự án ({project.ExperienceLevel}).");
             }
-            else
+            else if (!profile.YearsOfExperience.HasValue && effectiveExpReq <= 1)
             {
-                score += 15m; // No specific exp required
+                score += 10m;
             }
 
             // Budget Fit (10%)
-            if (project.BudgetMax.HasValue && profile.HourlyRate.HasValue)
+            if (project.PricingType == PricingType.Hourly && project.HourlyRateMax.HasValue && profile.HourlyRate.HasValue)
+            {
+                if (profile.HourlyRate.Value <= project.HourlyRateMax.Value)
+                {
+                    score += 10m;
+                    reasons.Add("Mức lương theo giờ hoàn toàn phù hợp ngân sách.");
+                }
+            }
+            else if (project.BudgetMax.HasValue && profile.HourlyRate.HasValue)
             {
                 // Simple heuristic: if hourly rate * 40 (approx 1 week) <= BudgetMax
                 if (profile.HourlyRate.Value * 40 <= project.BudgetMax.Value)
