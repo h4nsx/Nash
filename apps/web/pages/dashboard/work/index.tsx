@@ -76,6 +76,44 @@ export default function WorkContractsPage() {
   const [reviewing, setReviewing] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
 
+  // Client Create Milestone modal state
+  const [targetContractForMilestone, setTargetContractForMilestone] = useState<Contract | null>(null);
+  const [newMilestoneTitle, setNewMilestoneTitle] = useState('');
+  const [newMilestoneDescription, setNewMilestoneDescription] = useState('');
+  const [newMilestoneAmount, setNewMilestoneAmount] = useState('');
+  const [newMilestoneDueDate, setNewMilestoneDueDate] = useState('');
+  const [creatingMilestone, setCreatingMilestone] = useState(false);
+  const [createMilestoneError, setCreateMilestoneError] = useState<string | null>(null);
+
+  // Cancel Contract modal state
+  const [targetContractToCancel, setTargetContractToCancel] = useState<Contract | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancellingContract, setCancellingContract] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
+  // Pay Milestone (VietQR & Card) modal state
+  const [payingMilestone, setPayingMilestone] = useState<Milestone | null>(null);
+  const [paymentQrData, setPaymentQrData] = useState<{
+    milestoneId: string;
+    contractId: string;
+    projectTitle: string;
+    milestoneTitle: string;
+    amount: number;
+    currency: string;
+    bankBin: string;
+    bankName: string;
+    bankAccountNumber: string;
+    bankAccountName: string;
+    memo: string;
+    vietQrUrl: string;
+    transactionCode: string;
+  } | null>(null);
+  const [loadingQr, setLoadingQr] = useState(false);
+  const [paymentTab, setPaymentTab] = useState<'vietqr' | 'card'>('vietqr');
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [copiedField, setCopiedField] = useState<string | null>(null);
+
   const searchInputId = useId();
 
   const fetchContracts = async () => {
@@ -187,6 +225,56 @@ export default function WorkContractsPage() {
     }
   };
 
+  // Client: Open Payment Modal
+  const handleOpenPaymentModal = async (milestone: Milestone) => {
+    setPayingMilestone(milestone);
+    setPaymentQrData(null);
+    setLoadingQr(true);
+    setPaymentSuccess(false);
+    setPaymentTab('vietqr');
+
+    try {
+      const res = await apiClient<any>(`/payments/milestones/${milestone.id}/qr`);
+      if (res.success && res.data) {
+        setPaymentQrData(res.data);
+      }
+    } catch (err: unknown) {
+      alert(err instanceof ApiException ? err.error.message : 'Không thể tạo mã VietQR thanh toán.');
+    } finally {
+      setLoadingQr(false);
+    }
+  };
+
+  // Client: Confirm payment completed
+  const handleConfirmTransfer = async () => {
+    if (!payingMilestone) return;
+
+    try {
+      setConfirmingPayment(true);
+      const res = await apiClient(`/payments/milestones/${payingMilestone.id}/confirm-transfer`, {
+        method: 'POST'
+      });
+
+      if (res.success) {
+        setPaymentSuccess(true);
+        setTimeout(() => {
+          setPayingMilestone(null);
+          fetchContracts();
+        }, 1500);
+      }
+    } catch (err: unknown) {
+      alert(err instanceof ApiException ? err.error.message : 'Xác nhận thanh toán thất bại.');
+    } finally {
+      setConfirmingPayment(false);
+    }
+  };
+
+  const copyToClipboard = (text: string, field: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
   // Client: Request Changes
   const handleRequestChanges = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -213,6 +301,76 @@ export default function WorkContractsPage() {
       setReviewError(err instanceof ApiException ? err.error.message : 'Yêu cầu sửa đổi thất bại.');
     } finally {
       setReviewing(false);
+    }
+  };
+
+  // Client: Create Milestone
+  const handleCreateMilestone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetContractForMilestone) return;
+
+    try {
+      setCreatingMilestone(true);
+      setCreateMilestoneError(null);
+
+      const res = await apiClient(`/work/contracts/${targetContractForMilestone.id}/milestones`, {
+        method: 'POST',
+        body: JSON.stringify({
+          title: newMilestoneTitle,
+          description: newMilestoneDescription,
+          amount: parseFloat(newMilestoneAmount),
+          dueDate: new Date(newMilestoneDueDate).toISOString()
+        })
+      });
+
+      if (res.success) {
+        setTargetContractForMilestone(null);
+        setNewMilestoneTitle('');
+        setNewMilestoneDescription('');
+        setNewMilestoneAmount('');
+        setNewMilestoneDueDate('');
+        await fetchContracts();
+      }
+    } catch (err: unknown) {
+      if (err instanceof ApiException) {
+        setCreateMilestoneError(err.error?.message || 'Không thể tạo mốc thanh toán.');
+      } else {
+        setCreateMilestoneError('Lỗi kết nối khi gửi dữ liệu.');
+      }
+    } finally {
+      setCreatingMilestone(false);
+    }
+  };
+
+  // Cancel Contract
+  const handleCancelContract = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetContractToCancel) return;
+
+    try {
+      setCancellingContract(true);
+      setCancelError(null);
+
+      const res = await apiClient(`/work/contracts/${targetContractToCancel.id}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({
+          reason: cancelReason || 'Hai bên thống nhất dừng hợp đồng.'
+        })
+      });
+
+      if (res.success) {
+        setTargetContractToCancel(null);
+        setCancelReason('');
+        await fetchContracts();
+      }
+    } catch (err: unknown) {
+      if (err instanceof ApiException) {
+        setCancelError(err.error?.message || 'Không thể hủy hợp đồng.');
+      } else {
+        setCancelError('Lỗi kết nối khi gửi yêu cầu.');
+      }
+    } finally {
+      setCancellingContract(false);
     }
   };
 
@@ -515,8 +673,37 @@ export default function WorkContractsPage() {
                   {/* Milestones List */}
                   {isExpanded && (
                     <div className="border-t border-border bg-surface-subtle/30 p-5 space-y-3">
-                      <div className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-2">
-                        Tiến độ các mốc thanh toán ({totalMilestones})
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+                          Tiến độ các mốc thanh toán ({totalMilestones})
+                        </div>
+                        {isClient && contract.status === 1 && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setTargetContractForMilestone(contract);
+                                setNewMilestoneTitle('');
+                                setNewMilestoneDescription('');
+                                setNewMilestoneAmount('');
+                                setNewMilestoneDueDate('');
+                                setCreateMilestoneError(null);
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg bg-surface border border-border px-2.5 py-1 text-2xs font-semibold text-primary hover:bg-surface-subtle cursor-pointer shadow-2xs"
+                            >
+                              + Thêm mốc mới
+                            </button>
+                            <button
+                              onClick={() => {
+                                setTargetContractToCancel(contract);
+                                setCancelReason('');
+                                setCancelError(null);
+                              }}
+                              className="text-2xs font-semibold text-rose-600 hover:underline cursor-pointer"
+                            >
+                              Hủy hợp đồng
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {totalMilestones === 0 ? (
@@ -597,11 +784,10 @@ export default function WorkContractsPage() {
                                         Yêu cầu sửa
                                       </button>
                                       <button
-                                        onClick={() => handleAcceptMilestone(milestone.id)}
-                                        disabled={reviewing}
+                                        onClick={() => handleOpenPaymentModal(milestone)}
                                         className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
                                       >
-                                        {reviewing ? 'Đang duyệt...' : 'Nghiệm thu'}
+                                        Thanh toán & Nghiệm thu
                                       </button>
                                     </div>
                                   )}
@@ -740,6 +926,379 @@ export default function WorkContractsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Client: Add New Milestone Modal */}
+      {targetContractForMilestone && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div>
+                <h3 className="text-sm font-bold text-foreground">Thêm Cột Mốc Bàn Giao Mới</h3>
+                <p className="text-2xs text-text-muted mt-0.5">{targetContractForMilestone.projectTitle}</p>
+              </div>
+              <button
+                onClick={() => setTargetContractForMilestone(null)}
+                className="rounded-lg p-1 text-text-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {createMilestoneError && (
+              <div className="rounded-lg bg-danger-bg p-3 text-xs text-danger border border-rose-200">
+                {createMilestoneError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateMilestone} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-foreground mb-1">Tiêu đề mốc *</label>
+                <input
+                  type="text"
+                  required
+                  value={newMilestoneTitle}
+                  onChange={(e) => setNewMilestoneTitle(e.target.value)}
+                  placeholder="VD: Hoàn thành thiết kế giao diện & luồng người dùng"
+                  className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-foreground mb-1">Mô tả yêu cầu bàn giao</label>
+                <textarea
+                  rows={3}
+                  value={newMilestoneDescription}
+                  onChange={(e) => setNewMilestoneDescription(e.target.value)}
+                  placeholder="Mô tả các tiêu chí để mốc này được nghiệm thu..."
+                  className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-foreground mb-1">Số tiền thanh toán ($) *</label>
+                  <input
+                    type="number"
+                    required
+                    value={newMilestoneAmount}
+                    onChange={(e) => setNewMilestoneAmount(e.target.value)}
+                    placeholder="VD: 500"
+                    className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground font-mono focus:border-primary focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-foreground mb-1">Hạn chót (Deadline) *</label>
+                  <input
+                    type="date"
+                    required
+                    value={newMilestoneDueDate}
+                    onChange={(e) => setNewMilestoneDueDate(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setTargetContractForMilestone(null)}
+                  className="rounded-lg border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingMilestone}
+                  className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-1.5 text-xs font-semibold text-white shadow-xs"
+                >
+                  {creatingMilestone ? 'Đang tạo...' : 'Xác nhận thêm mốc'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Contract Modal */}
+      {targetContractToCancel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <h3 className="text-sm font-bold text-foreground">Hủy & Dừng Hợp Đồng</h3>
+              <button
+                onClick={() => setTargetContractToCancel(null)}
+                className="rounded-lg p-1 text-text-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {cancelError && (
+              <div className="rounded-lg bg-danger-bg p-3 text-xs text-danger border border-rose-200">
+                {cancelError}
+              </div>
+            )}
+
+            <form onSubmit={handleCancelContract} className="space-y-3 text-xs">
+              <p className="text-text-secondary text-2xs leading-relaxed">
+                Bạn có chắc chắn muốn dừng hợp đồng cho dự án <strong>{targetContractToCancel.projectTitle}</strong>? Các mốc chưa được nghiệm thu sẽ bị hủy bỏ.
+              </p>
+
+              <div>
+                <label className="block font-semibold text-foreground mb-1">Lý do dừng hợp đồng *</label>
+                <textarea
+                  rows={3}
+                  required
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Nêu rõ lý do hai bên thống nhất dừng hợp đồng..."
+                  className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setTargetContractToCancel(null)}
+                  className="rounded-lg border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle"
+                >
+                  Đóng
+                </button>
+                <button
+                  type="submit"
+                  disabled={cancellingContract}
+                  className="rounded-lg bg-rose-600 hover:bg-rose-700 px-4 py-1.5 text-xs font-bold text-white shadow-xs"
+                >
+                  {cancellingContract ? 'Đang xử lý...' : 'Xác nhận hủy hợp đồng'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Client: Pay Milestone Modal with VietQR and Card Tabs */}
+      {payingMilestone && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-surface shadow-2xl animate-in fade-in zoom-in-95 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-5 border-b border-border bg-surface-subtle">
+              <div>
+                <h3 className="text-sm font-bold text-foreground">Thanh toán & Nghiệm thu Cột mốc</h3>
+                <p className="text-2xs text-text-muted mt-0.5">{payingMilestone.title}</p>
+              </div>
+              <button
+                onClick={() => setPayingMilestone(null)}
+                className="rounded-lg p-1 text-text-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {paymentSuccess ? (
+              <div className="p-8 text-center space-y-3">
+                <div className="h-14 w-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
+                  <CheckCircle2 className="h-8 w-8" />
+                </div>
+                <h4 className="text-base font-bold text-foreground">Thanh toán & Nghiệm thu Thành công!</h4>
+                <p className="text-xs text-text-secondary">
+                  Cột mốc đã được xác nhận hoàn tất. Freelancer sẽ nhận được thông báo nghiệm thu ngay lập tức.
+                </p>
+              </div>
+            ) : (
+              <div className="p-6 space-y-5">
+                {/* 2-Option Selector */}
+                <div className="grid grid-cols-2 gap-2 p-1 rounded-xl bg-surface-subtle border border-border">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentTab('vietqr')}
+                    className={`flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                      paymentTab === 'vietqr'
+                        ? 'bg-primary text-white shadow-xs'
+                        : 'text-text-secondary hover:text-foreground'
+                    }`}
+                  >
+                    <span>Quét mã VietQR (Napas 24/7)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentTab('card')}
+                    className={`relative flex items-center justify-center gap-2 py-2 text-xs font-bold rounded-lg transition-all ${
+                      paymentTab === 'card'
+                        ? 'bg-primary text-white shadow-xs'
+                        : 'text-text-secondary hover:text-foreground'
+                    }`}
+                  >
+                    <span>Thẻ Visa / MasterCard</span>
+                    <span className="rounded-full bg-amber-100 text-amber-800 px-1.5 py-0.2 text-4xs font-bold">
+                      Sắp ra mắt
+                    </span>
+                  </button>
+                </div>
+
+                {/* Option 1: VietQR Active Tab */}
+                {paymentTab === 'vietqr' && (
+                  <div className="space-y-4">
+                    {loadingQr ? (
+                      <div className="flex h-48 items-center justify-center text-xs text-text-muted">
+                        Đang tạo mã VietQR thanh toán...
+                      </div>
+                    ) : paymentQrData ? (
+                      <>
+                        <div className="flex flex-col sm:flex-row items-center gap-4 rounded-xl border border-primary/30 bg-primary-soft/10 p-4">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={paymentQrData.vietQrUrl}
+                            alt="VietQR Payment Code"
+                            className="h-44 w-44 rounded-xl border border-border bg-white p-2 object-contain shadow-xs shrink-0"
+                          />
+
+                          <div className="space-y-2 text-xs w-full">
+                            <div>
+                              <span className="text-3xs text-text-muted block">Số tiền cần thanh toán</span>
+                              <span className="text-base font-extrabold text-foreground font-mono text-primary">
+                                {paymentQrData.amount.toLocaleString()} VND
+                              </span>
+                            </div>
+
+                            <div className="space-y-1.5 pt-1 border-t border-border/60">
+                              <div className="flex items-center justify-between">
+                                <span className="text-2xs text-text-muted">Ngân hàng:</span>
+                                <span className="font-semibold text-foreground text-2xs">{paymentQrData.bankName}</span>
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <span className="text-2xs text-text-muted">Số tài khoản:</span>
+                                <div className="flex items-center gap-1 font-mono font-bold text-foreground text-2xs">
+                                  <span>{paymentQrData.bankAccountNumber}</span>
+                                  <button
+                                    onClick={() => copyToClipboard(paymentQrData.bankAccountNumber, 'acc')}
+                                    className="text-primary hover:underline text-3xs ml-1"
+                                  >
+                                    {copiedField === 'acc' ? 'Đã chép!' : 'Sao chép'}
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between">
+                                <span className="text-2xs text-text-muted">Chủ tài khoản:</span>
+                                <span className="font-semibold text-foreground text-2xs uppercase">
+                                  {paymentQrData.bankAccountName}
+                                </span>
+                              </div>
+
+                              <div className="flex items-center justify-between bg-white dark:bg-surface p-1.5 rounded-lg border border-border">
+                                <span className="text-3xs text-text-muted">Nội dung CK:</span>
+                                <div className="flex items-center gap-1 font-mono font-bold text-primary text-2xs">
+                                  <span>{paymentQrData.memo}</span>
+                                  <button
+                                    onClick={() => copyToClipboard(paymentQrData.memo, 'memo')}
+                                    className="text-primary hover:underline text-3xs ml-1"
+                                  >
+                                    {copiedField === 'memo' ? 'Đã chép!' : 'Sao chép'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-2.5 text-2xs text-emerald-800 space-y-0.5">
+                          <div className="font-semibold">Lưu ý khi chuyển khoản:</div>
+                          <p>
+                            Vui lòng giữ nguyên mã nội dung chuyển khoản <strong>{paymentQrData.memo}</strong> để hệ thống tự động đối soát và khớp lệnh tức thì.
+                          </p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="text-center text-xs text-rose-600">
+                        Không thể tải thông tin thanh toán.
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+                      <button
+                        type="button"
+                        onClick={() => setPayingMilestone(null)}
+                        className="rounded-lg border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle"
+                      >
+                        Đóng
+                      </button>
+                      <button
+                        type="button"
+                        disabled={confirmingPayment}
+                        onClick={handleConfirmTransfer}
+                        className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-4 py-1.5 text-xs font-bold text-white shadow-xs"
+                      >
+                        {confirmingPayment ? 'Đang xác nhận...' : 'Thanh toán thành công'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Option 2: Card Locked Tab */}
+                {paymentTab === 'card' && (
+                  <div className="space-y-4">
+                    <div className="rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 text-center space-y-2">
+                      <span className="inline-block rounded-full bg-amber-200 text-amber-900 px-2 py-0.5 text-3xs font-bold">
+                        Tạm khóa thử nghiệm
+                      </span>
+                      <h4 className="text-xs font-bold text-foreground">
+                        Cổng thanh toán Thẻ Quốc tế (Visa / MasterCard)
+                      </h4>
+                      <p className="text-2xs text-text-secondary max-w-sm mx-auto leading-relaxed">
+                        Phương thức thanh toán qua thẻ quốc tế đang hoàn tất kết nối cổng PCI-DSS. Để tiết kiệm chi phí giao dịch, vui lòng sử dụng quét mã VietQR 24/7 (Miễn phí 100%).
+                      </p>
+                    </div>
+
+                    <div className="space-y-3 opacity-40 pointer-events-none select-none">
+                      <div>
+                        <label className="block text-2xs font-semibold text-text-muted mb-1">Số thẻ (Card Number)</label>
+                        <input
+                          type="text"
+                          disabled
+                          placeholder="4111 2222 3333 4444"
+                          className="w-full rounded-lg border border-border bg-surface-subtle p-2 text-xs font-mono"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-2xs font-semibold text-text-muted mb-1">Hạn dùng (MM/YY)</label>
+                          <input
+                            type="text"
+                            disabled
+                            placeholder="12/28"
+                            className="w-full rounded-lg border border-border bg-surface-subtle p-2 text-xs font-mono"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-2xs font-semibold text-text-muted mb-1">Mã bảo mật CVV</label>
+                          <input
+                            type="text"
+                            disabled
+                            placeholder="•••"
+                            className="w-full rounded-lg border border-border bg-surface-subtle p-2 text-xs font-mono"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-2 border-t border-border">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentTab('vietqr')}
+                        className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-1.5 text-xs font-semibold text-white shadow-xs"
+                      >
+                        Chuyển sang Quét mã VietQR
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}

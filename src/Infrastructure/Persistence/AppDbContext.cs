@@ -33,6 +33,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
     public DbSet<Milestone> Milestones { get; set; } = null!;
     public DbSet<Review> Reviews { get; set; } = null!;
     public DbSet<Notification> Notifications { get; set; } = null!;
+    public DbSet<PaymentTransaction> PaymentTransactions { get; set; } = null!;
     
     // Phase 7: CMS / SEO
     public DbSet<SystemSetting> SystemSettings { get; set; } = null!;

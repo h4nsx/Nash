@@ -32,6 +32,12 @@ public class FreelancerProfile
     
     public decimal JobSuccessScore { get; set; } = 100;
     
+    // Banking / Payout details
+    public string? BankBin { get; set; }
+    public string? BankName { get; set; }
+    public string? BankAccountNumber { get; set; }
+    public string? BankAccountName { get; set; }
+    
     // Navigation properties
     public User User { get; set; } = null!;
     

@@ -112,63 +112,100 @@ public class HandshakeService : IHandshakeService
 
     public async Task<(bool Success, string[] Errors)> AcceptInvitationAsync(Guid invitationId, string userId)
     {
-        var invitation = await _context.Invitations
-            .Include(i => i.ContractDrafts)
-            .FirstOrDefaultAsync(i => i.Id == invitationId);
-
-        if (invitation == null) return (false, new[] { "Không tìm thấy lời mời." });
-
-        var userGuid = Guid.Parse(userId);
-        if (invitation.FreelancerId != userGuid && invitation.SenderId != userGuid)
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        try
         {
-            return (false, new[] { "Bạn không có quyền thao tác trên lời mời này." });
+            var invitation = await _context.Invitations
+                .Include(i => i.ContractDrafts)
+                .Include(i => i.Project)
+                .FirstOrDefaultAsync(i => i.Id == invitationId);
+
+            if (invitation == null) return (false, new[] { "Không tìm thấy lời mời." });
+            if (invitation.Status == InvitationStatus.Accepted || invitation.Status == InvitationStatus.Declined || invitation.Status == InvitationStatus.Expired)
+            {
+                return (false, new[] { "Lời mời này đã hoàn thành hoặc đã hết hạn." });
+            }
+
+            var userGuid = Guid.Parse(userId);
+            if (invitation.FreelancerId != userGuid && invitation.SenderId != userGuid)
+            {
+                return (false, new[] { "Bạn không có quyền thao tác trên lời mời này." });
+            }
+
+            // Concurrency Check: strict check for active contracts
+            var hasActiveContract = await _context.Contracts.AnyAsync(c => c.ProjectId == invitation.ProjectId && c.Status == ContractStatus.Active);
+            if (hasActiveContract)
+            {
+                return (false, new[] { "Dự án này đã có hợp đồng đang hoạt động. Không thể kích hoạt thêm hợp đồng." });
+            }
+
+            var latestDraft = invitation.ContractDrafts.OrderByDescending(d => d.VersionNumber).First();
+            if (latestDraft.CreatedById == userGuid)
+            {
+                return (false, new[] { "Bạn không thể tự chấp nhận đề nghị của chính mình. Đang chờ đối tác xác nhận." });
+            }
+
+            latestDraft.Status = ContractDraftStatus.Accepted;
+            invitation.Status = InvitationStatus.Accepted;
+            invitation.UpdatedAt = DateTime.UtcNow;
+
+            var contract = new Contract
+            {
+                ProjectId = invitation.ProjectId,
+                FreelancerId = invitation.FreelancerId,
+                AcceptedDraftId = latestDraft.Id,
+                AgreedBudget = latestDraft.ProposedBudget,
+                StartDate = latestDraft.ProposedStartDate,
+                EndDate = latestDraft.ProposedEndDate,
+                Status = ContractStatus.Active,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            // Auto-seed initial Milestone 1 so the contract is immediately executable
+            var initialMilestone = new Milestone
+            {
+                ContractId = contract.Id,
+                Title = "Giai đoạn 1: Triển khai & Nghiệm thu toàn bộ phạm vi dự án",
+                Description = $"Bàn giao sản phẩm theo đúng điều khoản cam kết trong hợp đồng dự án '{invitation.Project?.Title ?? "NASH"}'.",
+                Amount = latestDraft.ProposedBudget,
+                DueDate = latestDraft.ProposedEndDate,
+                Status = MilestoneStatus.InProgress,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            contract.Milestones.Add(initialMilestone);
+            _context.Contracts.Add(contract);
+
+            // Update project status to InProgress
+            if (invitation.Project != null)
+            {
+                invitation.Project.Status = ProjectStatus.InProgress;
+                invitation.Project.UpdatedAt = DateTime.UtcNow;
+            }
+
+            // Cancel/Expire all other pending invitations for this project
+            var otherInvitations = await _context.Invitations
+                .Where(i => i.ProjectId == invitation.ProjectId && i.Id != invitationId && i.Status != InvitationStatus.Accepted && i.Status != InvitationStatus.Declined)
+                .ToListAsync();
+
+            foreach (var oi in otherInvitations)
+            {
+                oi.Status = InvitationStatus.Expired;
+                oi.UpdatedAt = DateTime.UtcNow;
+            }
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            return (true, Array.Empty<string>());
         }
-
-        // Concurrency Check
-        var hasActiveContract = await _context.Contracts.AnyAsync(c => c.ProjectId == invitation.ProjectId && c.Status == ContractStatus.Active);
-        if (hasActiveContract)
+        catch (Exception ex)
         {
-            return (false, new[] { "Dự án này đã có hợp đồng đang hoạt động. Bạn không thể chấp nhận lời mời." });
+            await transaction.RollbackAsync();
+            return (false, new[] { $"Lỗi khi chấp nhận hợp đồng: {ex.Message}" });
         }
-
-        var latestDraft = invitation.ContractDrafts.OrderByDescending(d => d.VersionNumber).First();
-        if (latestDraft.CreatedById == userGuid)
-        {
-            return (false, new[] { "Bạn không thể tự chấp nhận đề nghị của chính mình." });
-        }
-
-        latestDraft.Status = ContractDraftStatus.Accepted;
-        invitation.Status = InvitationStatus.Accepted;
-        invitation.UpdatedAt = DateTime.UtcNow;
-
-        var contract = new Contract
-        {
-            ProjectId = invitation.ProjectId,
-            FreelancerId = invitation.FreelancerId,
-            AcceptedDraftId = latestDraft.Id,
-            AgreedBudget = latestDraft.ProposedBudget,
-            StartDate = latestDraft.ProposedStartDate,
-            EndDate = latestDraft.ProposedEndDate,
-            Status = ContractStatus.Active,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
-
-        _context.Contracts.Add(contract);
-
-        // Cancel other pending invitations for this project
-        var pendingInvitations = await _context.Invitations
-            .Where(i => i.ProjectId == invitation.ProjectId && i.Id != invitationId && i.Status != InvitationStatus.Accepted && i.Status != InvitationStatus.Declined)
-            .ToListAsync();
-
-        foreach (var pi in pendingInvitations)
-        {
-            pi.Status = InvitationStatus.Expired; // Or a specific status for cancelled
-            pi.UpdatedAt = DateTime.UtcNow;
-        }
-
-        await _context.SaveChangesAsync();
-        return (true, Array.Empty<string>());
     }
 
     public async Task<(bool Success, string[] Errors)> DeclineInvitationAsync(Guid invitationId, string userId)
