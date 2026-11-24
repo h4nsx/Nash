@@ -85,6 +85,42 @@ namespace Infrastructure.Migrations
                     b.ToTable("Articles", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.Certification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CredentialId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("CredentialUrl")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("FreelancerProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("IssueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Issuer")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FreelancerProfileId");
+
+                    b.ToTable("Certifications");
+                });
+
             modelBuilder.Entity("Domain.Entities.Contract", b =>
                 {
                     b.Property<Guid>("Id")
@@ -209,6 +245,43 @@ namespace Infrastructure.Migrations
                     b.ToTable("ContractTemplates", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.Education", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Degree")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("EndYear")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("FieldOfStudy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("FreelancerProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("School")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("StartYear")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FreelancerProfileId");
+
+                    b.ToTable("Educations");
+                });
+
             modelBuilder.Entity("Domain.Entities.FreelancerProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -219,14 +292,46 @@ namespace Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("City")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Country")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("GithubUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Headline")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<decimal?>("HourlyRate")
                         .HasColumnType("numeric");
+
+                    b.Property<string>("HoursPerWeek")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsAvailable")
                         .HasColumnType("boolean");
 
+                    b.Property<decimal>("JobSuccessScore")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("LinkedinUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Timezone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("WebsiteUrl")
+                        .HasColumnType("text");
 
                     b.Property<int?>("YearsOfExperience")
                         .HasColumnType("integer");
@@ -275,6 +380,33 @@ namespace Infrastructure.Migrations
                     b.HasIndex("SenderId");
 
                     b.ToTable("Invitations", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.LanguageProficiency", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FreelancerProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ProficiencyLevel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FreelancerProfileId");
+
+                    b.ToTable("Languages");
                 });
 
             modelBuilder.Entity("Domain.Entities.Match", b =>
@@ -479,6 +611,54 @@ namespace Infrastructure.Migrations
                     b.ToTable("Pages", (string)null);
                 });
 
+            modelBuilder.Entity("Domain.Entities.PortfolioItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("FreelancerProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ImageUrlsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("LiveUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RepoUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Role")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TechStackJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FreelancerProfileId");
+
+                    b.ToTable("PortfolioItems");
+                });
+
             modelBuilder.Entity("Domain.Entities.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -617,7 +797,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            CreatedAt = new DateTime(2026, 11, 23, 15, 50, 48, 430, DateTimeKind.Utc).AddTicks(4410),
+                            CreatedAt = new DateTime(2026, 11, 24, 14, 18, 53, 733, DateTimeKind.Utc).AddTicks(2500),
                             Description = "Kỹ năng lập trình front-end với thư viện ReactJS.",
                             IsActive = true,
                             Name = "Phát triển ReactJS"
@@ -625,7 +805,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("22222222-2222-2222-2222-222222222222"),
-                            CreatedAt = new DateTime(2026, 11, 23, 15, 50, 48, 430, DateTimeKind.Utc).AddTicks(4421),
+                            CreatedAt = new DateTime(2026, 11, 24, 14, 18, 53, 733, DateTimeKind.Utc).AddTicks(2511),
                             Description = "Kỹ năng xây dựng ứng dụng với ngôn ngữ C# và nền tảng .NET.",
                             IsActive = true,
                             Name = "Lập trình C# .NET"
@@ -675,7 +855,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("33333333-3333-3333-3333-333333333333"),
-                            CreatedAt = new DateTime(2026, 11, 23, 15, 50, 48, 430, DateTimeKind.Utc).AddTicks(4728),
+                            CreatedAt = new DateTime(2026, 11, 24, 14, 18, 53, 733, DateTimeKind.Utc).AddTicks(2797),
                             PassingScore = 70,
                             SkillId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Status = 1,
@@ -687,7 +867,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("44444444-4444-4444-4444-444444444444"),
-                            CreatedAt = new DateTime(2026, 11, 23, 15, 50, 48, 430, DateTimeKind.Utc).AddTicks(4740),
+                            CreatedAt = new DateTime(2026, 11, 24, 14, 18, 53, 733, DateTimeKind.Utc).AddTicks(2810),
                             PassingScore = 80,
                             SkillId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Status = 1,
@@ -830,6 +1010,46 @@ namespace Infrastructure.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("VerifiedSkills", (string)null);
+                });
+
+            modelBuilder.Entity("Domain.Entities.WorkExperience", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CompanyName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("FreelancerProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsCurrentRole")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Position")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FreelancerProfileId");
+
+                    b.ToTable("WorkExperiences");
                 });
 
             modelBuilder.Entity("Infrastructure.Identity.ApplicationUser", b =>
@@ -1039,6 +1259,17 @@ namespace Infrastructure.Migrations
                     b.Navigation("Author");
                 });
 
+            modelBuilder.Entity("Domain.Entities.Certification", b =>
+                {
+                    b.HasOne("Domain.Entities.FreelancerProfile", "FreelancerProfile")
+                        .WithMany("Certifications")
+                        .HasForeignKey("FreelancerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FreelancerProfile");
+                });
+
             modelBuilder.Entity("Domain.Entities.Contract", b =>
                 {
                     b.HasOne("Domain.Entities.ContractDraft", "AcceptedDraft")
@@ -1085,6 +1316,17 @@ namespace Infrastructure.Migrations
                     b.Navigation("Invitation");
                 });
 
+            modelBuilder.Entity("Domain.Entities.Education", b =>
+                {
+                    b.HasOne("Domain.Entities.FreelancerProfile", "FreelancerProfile")
+                        .WithMany("Educations")
+                        .HasForeignKey("FreelancerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FreelancerProfile");
+                });
+
             modelBuilder.Entity("Domain.Entities.FreelancerProfile", b =>
                 {
                     b.HasOne("Domain.Entities.User", "User")
@@ -1121,6 +1363,17 @@ namespace Infrastructure.Migrations
                     b.Navigation("Project");
 
                     b.Navigation("Sender");
+                });
+
+            modelBuilder.Entity("Domain.Entities.LanguageProficiency", b =>
+                {
+                    b.HasOne("Domain.Entities.FreelancerProfile", "FreelancerProfile")
+                        .WithMany("Languages")
+                        .HasForeignKey("FreelancerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FreelancerProfile");
                 });
 
             modelBuilder.Entity("Domain.Entities.Match", b =>
@@ -1162,6 +1415,17 @@ namespace Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Domain.Entities.PortfolioItem", b =>
+                {
+                    b.HasOne("Domain.Entities.FreelancerProfile", "FreelancerProfile")
+                        .WithMany("PortfolioItems")
+                        .HasForeignKey("FreelancerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FreelancerProfile");
                 });
 
             modelBuilder.Entity("Domain.Entities.Project", b =>
@@ -1278,6 +1542,17 @@ namespace Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Domain.Entities.WorkExperience", b =>
+                {
+                    b.HasOne("Domain.Entities.FreelancerProfile", "FreelancerProfile")
+                        .WithMany("WorkExperiences")
+                        .HasForeignKey("FreelancerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("FreelancerProfile");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -1334,6 +1609,19 @@ namespace Infrastructure.Migrations
                     b.Navigation("Milestones");
 
                     b.Navigation("Reviews");
+                });
+
+            modelBuilder.Entity("Domain.Entities.FreelancerProfile", b =>
+                {
+                    b.Navigation("Certifications");
+
+                    b.Navigation("Educations");
+
+                    b.Navigation("Languages");
+
+                    b.Navigation("PortfolioItems");
+
+                    b.Navigation("WorkExperiences");
                 });
 
             modelBuilder.Entity("Domain.Entities.Invitation", b =>
