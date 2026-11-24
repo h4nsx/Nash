@@ -13,7 +13,8 @@ primary_region = 'sin'
   ASPNETCORE_ENVIRONMENT = 'Production'
   ConnectionStrings__Default = 'Host=aws-1-ap-south-1.pooler.supabase.com;Port=5432;Database=postgres;Username=postgres.duusisbfjjlloujtotfk;Password=jiyunFT3VoplKEYu;Ssl Mode=Require;Trust Server Certificate=true;'
   Cors__AllowedOrigins__0 = 'https://nash-freelancer.netlify.app'
-  Cors__AllowedOrigins__1 = 'http://localhost:3000'
+  Cors__AllowedOrigins__1 = 'https://nash.norva.id.vn'
+  Cors__AllowedOrigins__2 = 'http://localhost:3000'
 
 [http_service]
   internal_port = 8080
