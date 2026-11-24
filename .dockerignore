@@ -1,0 +1,12 @@
+.git
+.github
+.vscode
+.idea
+**/bin/
+**/obj/
+apps/web/node_modules
+apps/web/.next
+*.user
+*.suo
+*.log
+
