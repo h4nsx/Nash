@@ -174,6 +174,50 @@ public class WorkService : IWorkService
         return (true, Array.Empty<string>());
     }
 
+    public async Task<(bool Success, string[] Errors)> CancelContractAsync(Guid contractId, string reason, string userId)
+    {
+        var contract = await _context.Contracts
+            .Include(c => c.Project)
+            .FirstOrDefaultAsync(c => c.Id == contractId);
+
+        if (contract == null) return (false, new[] { "Không tìm thấy hợp đồng." });
+
+        var uId = Guid.Parse(userId);
+        if (contract.Project.ClientId != uId && contract.FreelancerId != uId)
+        {
+            return (false, new[] { "Bạn không có quyền hủy hợp đồng này." });
+        }
+
+        if (contract.Status != ContractStatus.Active)
+        {
+            return (false, new[] { "Chỉ có thể hủy hợp đồng đang hoạt động." });
+        }
+
+        contract.Status = ContractStatus.Cancelled;
+        contract.UpdatedAt = DateTime.UtcNow;
+
+        if (contract.Project != null)
+        {
+            contract.Project.Status = ProjectStatus.Cancelled;
+            contract.Project.UpdatedAt = DateTime.UtcNow;
+        }
+
+        var notificationRecipient = (contract.Project != null && contract.Project.ClientId == uId) ? contract.FreelancerId : (contract.Project?.ClientId ?? contract.FreelancerId);
+        var projectTitle = contract.Project?.Title ?? "NASH";
+        var notification = new Notification
+        {
+            UserId = notificationRecipient,
+            Title = "Hợp đồng đã bị hủy",
+            Message = $"Hợp đồng cho dự án '{projectTitle}' đã bị dừng. Lý do: {reason}",
+            Type = NotificationType.ContractUpdate,
+            CreatedAt = DateTime.UtcNow
+        };
+        _context.Notifications.Add(notification);
+
+        await _context.SaveChangesAsync();
+        return (true, Array.Empty<string>());
+    }
+
     public async Task<(bool Success, string[] Errors)> SubmitReviewAsync(Guid contractId, ReviewDto request, string reviewerId)
     {
         var contract = await _context.Contracts

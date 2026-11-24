@@ -137,6 +137,20 @@ public class WorkController : ControllerBase
         return Ok(ApiResponse<object>.Ok(new { Message = "Hợp đồng đã hoàn thành." }));
     }
 
+    [HttpPost("contracts/{id}/cancel")]
+    public async Task<ActionResult<ApiResponse<object>>> CancelContract(Guid id, [FromBody] CancelContractRequest request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var (success, errors) = await _workService.CancelContractAsync(id, request.Reason ?? "Không có lý do cụ thể", userId);
+
+        if (!success)
+            return BadRequest(new ApiErrorResponse { StatusCode = 400, Code = "CANCEL_CONTRACT_FAILED", Message = errors.FirstOrDefault() ?? "Lỗi hủy hợp đồng." });
+
+        return Ok(ApiResponse<object>.Ok(new { Message = "Hợp đồng đã được hủy thành công." }));
+    }
+
     [HttpPost("contracts/{id}/reviews")]
     public async Task<ActionResult<ApiResponse<object>>> SubmitReview(Guid id, [FromBody] ReviewDto request)
     {
@@ -160,4 +174,9 @@ public class SubmitMilestoneRequest
 public class RequestChangesRequest
 {
     public string Feedback { get; set; } = string.Empty;
+}
+
+public class CancelContractRequest
+{
+    public string Reason { get; set; } = string.Empty;
 }

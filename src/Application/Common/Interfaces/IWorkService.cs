@@ -12,6 +12,7 @@ public interface IWorkService
     
     // Contract
     Task<(bool Success, string[] Errors)> CompleteContractAsync(Guid contractId, string clientId);
+    Task<(bool Success, string[] Errors)> CancelContractAsync(Guid contractId, string reason, string userId);
     
     // Reviews
     Task<(bool Success, string[] Errors)> SubmitReviewAsync(Guid contractId, ReviewDto request, string reviewerId);

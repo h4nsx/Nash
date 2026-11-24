@@ -76,6 +76,21 @@ export default function WorkContractsPage() {
   const [reviewing, setReviewing] = useState(false);
   const [reviewError, setReviewError] = useState<string | null>(null);
 
+  // Client Create Milestone modal state
+  const [targetContractForMilestone, setTargetContractForMilestone] = useState<Contract | null>(null);
+  const [newMilestoneTitle, setNewMilestoneTitle] = useState('');
+  const [newMilestoneDescription, setNewMilestoneDescription] = useState('');
+  const [newMilestoneAmount, setNewMilestoneAmount] = useState('');
+  const [newMilestoneDueDate, setNewMilestoneDueDate] = useState('');
+  const [creatingMilestone, setCreatingMilestone] = useState(false);
+  const [createMilestoneError, setCreateMilestoneError] = useState<string | null>(null);
+
+  // Cancel Contract modal state
+  const [targetContractToCancel, setTargetContractToCancel] = useState<Contract | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [cancellingContract, setCancellingContract] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
+
   const searchInputId = useId();
 
   const fetchContracts = async () => {
@@ -213,6 +228,76 @@ export default function WorkContractsPage() {
       setReviewError(err instanceof ApiException ? err.error.message : 'Yêu cầu sửa đổi thất bại.');
     } finally {
       setReviewing(false);
+    }
+  };
+
+  // Client: Create Milestone
+  const handleCreateMilestone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetContractForMilestone) return;
+
+    try {
+      setCreatingMilestone(true);
+      setCreateMilestoneError(null);
+
+      const res = await apiClient(`/work/contracts/${targetContractForMilestone.id}/milestones`, {
+        method: 'POST',
+        body: JSON.stringify({
+          title: newMilestoneTitle,
+          description: newMilestoneDescription,
+          amount: parseFloat(newMilestoneAmount),
+          dueDate: new Date(newMilestoneDueDate).toISOString()
+        })
+      });
+
+      if (res.success) {
+        setTargetContractForMilestone(null);
+        setNewMilestoneTitle('');
+        setNewMilestoneDescription('');
+        setNewMilestoneAmount('');
+        setNewMilestoneDueDate('');
+        await fetchContracts();
+      }
+    } catch (err: unknown) {
+      if (err instanceof ApiException) {
+        setCreateMilestoneError(err.error?.message || 'Không thể tạo mốc thanh toán.');
+      } else {
+        setCreateMilestoneError('Lỗi kết nối khi gửi dữ liệu.');
+      }
+    } finally {
+      setCreatingMilestone(false);
+    }
+  };
+
+  // Cancel Contract
+  const handleCancelContract = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetContractToCancel) return;
+
+    try {
+      setCancellingContract(true);
+      setCancelError(null);
+
+      const res = await apiClient(`/work/contracts/${targetContractToCancel.id}/cancel`, {
+        method: 'POST',
+        body: JSON.stringify({
+          reason: cancelReason || 'Hai bên thống nhất dừng hợp đồng.'
+        })
+      });
+
+      if (res.success) {
+        setTargetContractToCancel(null);
+        setCancelReason('');
+        await fetchContracts();
+      }
+    } catch (err: unknown) {
+      if (err instanceof ApiException) {
+        setCancelError(err.error?.message || 'Không thể hủy hợp đồng.');
+      } else {
+        setCancelError('Lỗi kết nối khi gửi yêu cầu.');
+      }
+    } finally {
+      setCancellingContract(false);
     }
   };
 
@@ -515,8 +600,37 @@ export default function WorkContractsPage() {
                   {/* Milestones List */}
                   {isExpanded && (
                     <div className="border-t border-border bg-surface-subtle/30 p-5 space-y-3">
-                      <div className="text-xs font-bold uppercase tracking-wider text-text-secondary mb-2">
-                        Tiến độ các mốc thanh toán ({totalMilestones})
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="text-xs font-bold uppercase tracking-wider text-text-secondary">
+                          Tiến độ các mốc thanh toán ({totalMilestones})
+                        </div>
+                        {isClient && contract.status === 1 && (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setTargetContractForMilestone(contract);
+                                setNewMilestoneTitle('');
+                                setNewMilestoneDescription('');
+                                setNewMilestoneAmount('');
+                                setNewMilestoneDueDate('');
+                                setCreateMilestoneError(null);
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg bg-surface border border-border px-2.5 py-1 text-2xs font-semibold text-primary hover:bg-surface-subtle cursor-pointer shadow-2xs"
+                            >
+                              + Thêm mốc mới
+                            </button>
+                            <button
+                              onClick={() => {
+                                setTargetContractToCancel(contract);
+                                setCancelReason('');
+                                setCancelError(null);
+                              }}
+                              className="text-2xs font-semibold text-rose-600 hover:underline cursor-pointer"
+                            >
+                              Hủy hợp đồng
+                            </button>
+                          </div>
+                        )}
                       </div>
 
                       {totalMilestones === 0 ? (
@@ -737,6 +851,156 @@ export default function WorkContractsPage() {
                   className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
                 >
                   {reviewing ? 'Đang gửi...' : 'Gửi yêu cầu sửa'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Client: Add New Milestone Modal */}
+      {targetContractForMilestone && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div>
+                <h3 className="text-sm font-bold text-foreground">Thêm Cột Mốc Bàn Giao Mới</h3>
+                <p className="text-2xs text-text-muted mt-0.5">{targetContractForMilestone.projectTitle}</p>
+              </div>
+              <button
+                onClick={() => setTargetContractForMilestone(null)}
+                className="rounded-lg p-1 text-text-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {createMilestoneError && (
+              <div className="rounded-lg bg-danger-bg p-3 text-xs text-danger border border-rose-200">
+                {createMilestoneError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateMilestone} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-foreground mb-1">Tiêu đề mốc *</label>
+                <input
+                  type="text"
+                  required
+                  value={newMilestoneTitle}
+                  onChange={(e) => setNewMilestoneTitle(e.target.value)}
+                  placeholder="VD: Hoàn thành thiết kế giao diện & luồng người dùng"
+                  className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-foreground mb-1">Mô tả yêu cầu bàn giao</label>
+                <textarea
+                  rows={3}
+                  value={newMilestoneDescription}
+                  onChange={(e) => setNewMilestoneDescription(e.target.value)}
+                  placeholder="Mô tả các tiêu chí để mốc này được nghiệm thu..."
+                  className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-foreground mb-1">Số tiền thanh toán ($) *</label>
+                  <input
+                    type="number"
+                    required
+                    value={newMilestoneAmount}
+                    onChange={(e) => setNewMilestoneAmount(e.target.value)}
+                    placeholder="VD: 500"
+                    className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground font-mono focus:border-primary focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-foreground mb-1">Hạn chót (Deadline) *</label>
+                  <input
+                    type="date"
+                    required
+                    value={newMilestoneDueDate}
+                    onChange={(e) => setNewMilestoneDueDate(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setTargetContractForMilestone(null)}
+                  className="rounded-lg border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingMilestone}
+                  className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-1.5 text-xs font-semibold text-white shadow-xs"
+                >
+                  {creatingMilestone ? 'Đang tạo...' : 'Xác nhận thêm mốc'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Cancel Contract Modal */}
+      {targetContractToCancel && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <h3 className="text-sm font-bold text-foreground">Hủy & Dừng Hợp Đồng</h3>
+              <button
+                onClick={() => setTargetContractToCancel(null)}
+                className="rounded-lg p-1 text-text-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {cancelError && (
+              <div className="rounded-lg bg-danger-bg p-3 text-xs text-danger border border-rose-200">
+                {cancelError}
+              </div>
+            )}
+
+            <form onSubmit={handleCancelContract} className="space-y-3 text-xs">
+              <p className="text-text-secondary text-2xs leading-relaxed">
+                Bạn có chắc chắn muốn dừng hợp đồng cho dự án <strong>{targetContractToCancel.projectTitle}</strong>? Các mốc chưa được nghiệm thu sẽ bị hủy bỏ.
+              </p>
+
+              <div>
+                <label className="block font-semibold text-foreground mb-1">Lý do dừng hợp đồng *</label>
+                <textarea
+                  rows={3}
+                  required
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Nêu rõ lý do hai bên thống nhất dừng hợp đồng..."
+                  className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setTargetContractToCancel(null)}
+                  className="rounded-lg border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle"
+                >
+                  Đóng
+                </button>
+                <button
+                  type="submit"
+                  disabled={cancellingContract}
+                  className="rounded-lg bg-rose-600 hover:bg-rose-700 px-4 py-1.5 text-xs font-bold text-white shadow-xs"
+                >
+                  {cancellingContract ? 'Đang xử lý...' : 'Xác nhận hủy hợp đồng'}
                 </button>
               </div>
             </form>

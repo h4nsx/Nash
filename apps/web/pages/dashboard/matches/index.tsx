@@ -74,6 +74,10 @@ export default function MatchesPage() {
   const [counterError, setCounterError] = useState<string | null>(null);
   const [counterLoading, setCounterLoading] = useState(false);
 
+  // Pre-Acceptance Confirmation Modal State
+  const [isAcceptModalOpen, setIsAcceptModalOpen] = useState(false);
+  const [acceptConfirmed, setAcceptConfirmed] = useState(false);
+
   const fetchInvitations = async () => {
     try {
       setLoading(true);
@@ -369,7 +373,10 @@ export default function MatchesPage() {
                           Thương lượng
                         </button>
                         <button
-                          onClick={() => handleAction(selectedInvitation.id, 'accept')}
+                          onClick={() => {
+                            setAcceptConfirmed(false);
+                            setIsAcceptModalOpen(true);
+                          }}
                           disabled={processingId === selectedInvitation.id}
                           className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-1.5 text-xs font-semibold text-white shadow-2xs transition-colors cursor-pointer"
                         >
@@ -601,6 +608,84 @@ export default function MatchesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Pre-Acceptance Confirmation Modal */}
+      {isAcceptModalOpen && selectedInvitation && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-lg rounded-2xl border border-border bg-surface p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Handshake className="h-5 w-5 text-primary" />
+                <h3 className="text-sm font-bold text-foreground">Xác Nhận Điều Khoản & Ký Hợp Đồng</h3>
+              </div>
+              <button
+                onClick={() => setIsAcceptModalOpen(false)}
+                className="rounded-lg p-1 text-text-muted hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="rounded-xl border border-border bg-surface-subtle p-4 space-y-2 text-xs">
+              <div className="text-2xs font-bold text-text-muted uppercase">Dự án áp dụng</div>
+              <div className="font-bold text-foreground text-sm">{selectedInvitation.projectTitle}</div>
+              
+              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/60">
+                <div>
+                  <span className="text-3xs text-text-muted block">Ngân sách chốt</span>
+                  <span className="font-bold text-foreground font-mono text-xs">
+                    {formatCurrency(getLatestDraft(selectedInvitation)?.proposedBudget || 0)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-3xs text-text-muted block">Thời hạn hoàn thành</span>
+                  <span className="font-bold text-foreground text-xs">
+                    {formatDate(getLatestDraft(selectedInvitation)?.proposedEndDate || '')}
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-2 text-3xs text-text-secondary">
+                • Hệ thống sẽ tự động kích hoạt hợp đồng chính thức và khởi tạo cột mốc triển khai đầu tiên.<br />
+                • Các lời mời khác liên quan đến dự án này sẽ tự động đóng.
+              </div>
+            </div>
+
+            <label className="flex items-start gap-2.5 p-3 rounded-xl border border-primary/40 bg-primary-soft/10 text-xs cursor-pointer">
+              <input
+                type="checkbox"
+                checked={acceptConfirmed}
+                onChange={(e) => setAcceptConfirmed(e.target.checked)}
+                className="mt-0.5 rounded border-border text-primary focus:ring-0"
+              />
+              <span className="text-foreground leading-relaxed">
+                Tôi xác nhận đã đọc, hiểu rõ và đồng ý toàn bộ với các điều khoản, thời gian và ngân sách đã thỏa thuận.
+              </span>
+            </label>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setIsAcceptModalOpen(false)}
+                className="rounded-lg border border-border px-4 py-2 text-xs font-medium text-foreground hover:bg-surface-subtle"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={!acceptConfirmed || processingId === selectedInvitation.id}
+                onClick={async () => {
+                  setIsAcceptModalOpen(false);
+                  await handleAction(selectedInvitation.id, 'accept');
+                }}
+                className="rounded-lg bg-primary hover:bg-primary-hover px-5 py-2 text-xs font-bold text-white shadow-xs disabled:opacity-50 cursor-pointer"
+              >
+                {processingId === selectedInvitation.id ? 'Đang kích hoạt...' : 'Xác nhận Ký Hợp Đồng'}
+              </button>
+            </div>
           </div>
         </div>
       )}
