@@ -37,8 +37,8 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
         { name: 'Việc đang làm & Mốc nộp', href: '/dashboard/work', icon: Briefcase },
         { name: 'Lời mời nhận được', href: '/dashboard/matches', icon: Handshake },
         { name: 'Tìm việc & Xem dự án', href: '/dashboard/projects', icon: FolderKanban },
-        { name: 'Hồ sơ cá nhân', href: '/dashboard/profile/edit', icon: User },
-        { name: 'Bài thi kỹ năng', href: '/dashboard/profile', icon: Award },
+        { name: 'Hồ sơ & Portfolio', href: '/dashboard/profile', icon: User },
+        { name: 'Khảo thí Kỹ năng', href: '/dashboard/skills', icon: Award },
         { name: 'Cài đặt tài khoản', href: '/dashboard/settings', icon: Settings },
       ];
 

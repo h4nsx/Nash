@@ -617,7 +617,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("11111111-1111-1111-1111-111111111111"),
-                            CreatedAt = new DateTime(2026, 10, 4, 15, 37, 52, 583, DateTimeKind.Utc).AddTicks(5908),
+                            CreatedAt = new DateTime(2026, 11, 23, 15, 50, 48, 430, DateTimeKind.Utc).AddTicks(4410),
                             Description = "Kỹ năng lập trình front-end với thư viện ReactJS.",
                             IsActive = true,
                             Name = "Phát triển ReactJS"
@@ -625,7 +625,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("22222222-2222-2222-2222-222222222222"),
-                            CreatedAt = new DateTime(2026, 10, 4, 15, 37, 52, 583, DateTimeKind.Utc).AddTicks(5920),
+                            CreatedAt = new DateTime(2026, 11, 23, 15, 50, 48, 430, DateTimeKind.Utc).AddTicks(4421),
                             Description = "Kỹ năng xây dựng ứng dụng với ngôn ngữ C# và nền tảng .NET.",
                             IsActive = true,
                             Name = "Lập trình C# .NET"
@@ -675,7 +675,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("33333333-3333-3333-3333-333333333333"),
-                            CreatedAt = new DateTime(2026, 10, 4, 15, 37, 52, 583, DateTimeKind.Utc).AddTicks(8163),
+                            CreatedAt = new DateTime(2026, 11, 23, 15, 50, 48, 430, DateTimeKind.Utc).AddTicks(4728),
                             PassingScore = 70,
                             SkillId = new Guid("11111111-1111-1111-1111-111111111111"),
                             Status = 1,
@@ -687,7 +687,7 @@ namespace Infrastructure.Migrations
                         new
                         {
                             Id = new Guid("44444444-4444-4444-4444-444444444444"),
-                            CreatedAt = new DateTime(2026, 10, 4, 15, 37, 52, 583, DateTimeKind.Utc).AddTicks(8177),
+                            CreatedAt = new DateTime(2026, 11, 23, 15, 50, 48, 430, DateTimeKind.Utc).AddTicks(4740),
                             PassingScore = 80,
                             SkillId = new Guid("22222222-2222-2222-2222-222222222222"),
                             Status = 1,
