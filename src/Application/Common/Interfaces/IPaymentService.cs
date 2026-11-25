@@ -5,6 +5,25 @@ public interface IPaymentService
     Task<(bool Success, PaymentQrDto? QrData, string[] Errors)> GenerateMilestonePaymentQrAsync(Guid milestoneId, string clientId);
     Task<(bool Success, string[] Errors)> ProcessPayOsWebhookAsync(PayOsWebhookPayload payload);
     Task<(bool Success, string[] Errors)> ConfirmPaymentManuallyAsync(Guid milestoneId, string clientId);
+    Task<List<PaymentTransactionDto>> GetUserTransactionsAsync(string userId, string? role = null);
+}
+
+public class PaymentTransactionDto
+{
+    public Guid Id { get; set; }
+    public Guid ContractId { get; set; }
+    public Guid MilestoneId { get; set; }
+    public string ProjectTitle { get; set; } = string.Empty;
+    public string MilestoneTitle { get; set; } = string.Empty;
+    public string CounterpartyName { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public string Currency { get; set; } = "VND";
+    public string PaymentMethod { get; set; } = "VietQR";
+    public string Status { get; set; } = "Pending";
+    public string TransactionCode { get; set; } = string.Empty;
+    public string QrUrl { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+    public DateTime? CompletedAt { get; set; }
 }
 
 public class PaymentQrDto

@@ -6,6 +6,8 @@ public interface IWorkService
 {
     // Milestones
     Task<(bool Success, Guid MilestoneId, string[] Errors)> CreateMilestoneAsync(Guid contractId, CreateMilestoneDto request, string clientId);
+    Task<(bool Success, string[] Errors)> UpdateMilestoneAsync(Guid milestoneId, UpdateMilestoneDto request, string clientId);
+    Task<(bool Success, string[] Errors)> DeleteMilestoneAsync(Guid milestoneId, string clientId);
     Task<(bool Success, string[] Errors)> SubmitMilestoneAsync(Guid milestoneId, string notes, string freelancerId);
     Task<(bool Success, string[] Errors)> RequestMilestoneChangesAsync(Guid milestoneId, string feedback, string clientId);
     Task<(bool Success, string[] Errors)> AcceptMilestoneAsync(Guid milestoneId, string clientId);
@@ -72,6 +74,14 @@ public class ReviewItemDto
 }
 
 public class CreateMilestoneDto
+{
+    public string Title { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public decimal Amount { get; set; }
+    public DateTime DueDate { get; set; }
+}
+
+public class UpdateMilestoneDto
 {
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;

@@ -16,6 +16,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
     public DbSet<Project> Projects { get; set; } = null!;
     public DbSet<ProjectSkillRequirement> ProjectSkillRequirements { get; set; } = null!;
     public DbSet<FreelancerProfile> FreelancerProfiles { get; set; } = null!;
+    public DbSet<ClientProfile> ClientProfiles { get; set; } = null!;
     public DbSet<PortfolioItem> PortfolioItems { get; set; } = null!;
     public DbSet<WorkExperience> WorkExperiences { get; set; } = null!;
     public DbSet<Education> Educations { get; set; } = null!;
@@ -174,6 +175,18 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>, IAppDbContext
             entity.HasMany(e => e.Languages)
                   .WithOne(l => l.FreelancerProfile)
                   .HasForeignKey(l => l.FreelancerProfileId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ClientProfile>(entity =>
+        {
+            entity.ToTable("ClientProfiles");
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.UserId).IsUnique();
+
+            entity.HasOne(e => e.User)
+                  .WithOne(u => u.ClientProfile)
+                  .HasForeignKey<ClientProfile>(e => e.UserId)
                   .OnDelete(DeleteBehavior.Cascade);
         });
 

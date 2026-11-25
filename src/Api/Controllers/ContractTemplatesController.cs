@@ -7,7 +7,7 @@ namespace Api.Controllers;
 
 [ApiController]
 [Route("api/v1/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize]
 public class ContractTemplatesController : ControllerBase
 {
     private readonly IContractTemplateService _templateService;
@@ -21,9 +21,14 @@ public class ContractTemplatesController : ControllerBase
     public async Task<ActionResult<ApiResponse<List<ContractTemplateDto>>>> GetAllTemplates()
     {
         var templates = await _templateService.GetAllTemplatesAsync();
+        if (!User.IsInRole("Admin"))
+        {
+            templates = templates.Where(t => t.IsActive).ToList();
+        }
         return Ok(ApiResponse<List<ContractTemplateDto>>.Ok(templates));
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPost]
     public async Task<ActionResult<ApiResponse<object>>> CreateTemplate([FromBody] ContractTemplateDto request)
     {
@@ -37,6 +42,7 @@ public class ContractTemplatesController : ControllerBase
         return Ok(ApiResponse<object>.Ok(new { Id = templateId, Message = "Tạo mẫu hợp đồng thành công." }));
     }
 
+    [Authorize(Roles = "Admin")]
     [HttpPut("{id}")]
     public async Task<ActionResult<ApiResponse<object>>> UpdateTemplate(Guid id, [FromBody] ContractTemplateDto request)
     {

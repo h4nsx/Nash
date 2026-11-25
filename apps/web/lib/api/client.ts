@@ -79,3 +79,54 @@ export async function apiClient<T>(
 
   return response.json();
 }
+
+export async function apiUploadFile<T>(
+  endpoint: string,
+  formData: FormData
+): Promise<ApiResponse<T>> {
+  const url = endpoint.startsWith('http')
+    ? endpoint
+    : `${API_BASE_URL}${endpoint.startsWith('/') ? '' : '/'}${endpoint}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      Accept: 'application/json',
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let errorData: ApiError;
+    try {
+      errorData = await response.json();
+    } catch {
+      errorData = {
+        statusCode: response.status,
+        code: response.status === 401 ? 'UNAUTHORIZED' : 'HTTP_ERROR',
+        message:
+          response.status === 401
+            ? 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+            : response.statusText || 'Upload failed.',
+      };
+    }
+
+    if (response.status === 401 && typeof window !== 'undefined') {
+      localStorage.removeItem('nash_user');
+      const pathname = window.location.pathname;
+      if (
+        pathname !== '/login' &&
+        pathname !== '/register' &&
+        pathname !== '/forgot-password' &&
+        pathname !== '/reset-password'
+      ) {
+        window.location.href = `/login?session_expired=true&redirect=${encodeURIComponent(pathname)}`;
+      }
+    }
+
+    throw new ApiException(errorData);
+  }
+
+  return response.json();
+}

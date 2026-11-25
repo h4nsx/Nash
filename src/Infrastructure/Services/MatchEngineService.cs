@@ -2,6 +2,7 @@ using System.Text.Json;
 using Application.Common.Interfaces;
 using Domain.Entities;
 using Domain.Enums;
+using Domain.Services;
 using Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -16,6 +17,25 @@ public class MatchEngineService : IMatchEngineService
         _context = context;
     }
 
+    private sealed class RankedMatchCandidate : IMatchRankingCandidate
+    {
+        public required Match Match { get; init; }
+        public required User Freelancer { get; init; }
+        public required List<string> ReasonCodes { get; init; }
+        public required List<string> Reasons { get; init; }
+        public Guid FreelancerId => Freelancer.Id;
+        public decimal Score => Match.Score;
+        public int MandatoryCoveredCount { get; init; }
+        public int VerifiedCoveredCount { get; init; }
+        public bool IsAvailable { get; init; }
+    }
+
+    private sealed class StoredReasonsPayload
+    {
+        public List<string> Codes { get; set; } = new();
+        public List<string> Reasons { get; set; } = new();
+    }
+
     public async Task<(bool Success, List<MatchDto> Matches, string[] Errors)> GenerateMatchesAsync(Guid projectId, string clientId)
     {
         var project = await _context.Projects
@@ -28,29 +48,25 @@ public class MatchEngineService : IMatchEngineService
         if (project.Status != ProjectStatus.Published)
             return (false, new List<MatchDto>(), new[] { "Chỉ có thể tìm kiếm ứng viên cho dự án đã xuất bản." });
 
-        // Retrieve all freelancers with a profile
         var freelancers = await _context.DomainUsers
             .Include(u => u.FreelancerProfile)
             .Include(u => u.VerifiedSkills)
+                .ThenInclude(vs => vs.Skill)
             .Where(u => u.Role == Role.Freelancer && u.FreelancerProfile != null)
             .ToListAsync();
 
-        var matchesToSave = new List<Match>();
+        var candidates = new List<RankedMatchCandidate>();
         var matchVersion = "match-v1";
 
         foreach (var freelancer in freelancers)
         {
             var profile = freelancer.FreelancerProfile!;
-            var reasons = new List<string>();
+            if (!profile.IsAvailable) continue;
 
-            // --- 1. Eligibility (Hard Filter) ---
-            if (!profile.IsAvailable) continue; // Must be available
-
+            var mandatoryReqs = project.SkillRequirements.Where(r => r.IsMandatory).ToList();
             bool eligible = true;
-            foreach (var req in project.SkillRequirements.Where(r => r.IsMandatory))
+            foreach (var req in mandatoryReqs)
             {
-                // To be strictly eligible, they must have this skill verified (for MVP strictness)
-                // or at least we could check if they have it. We will mandate it must be a VerifiedSkill for strictness.
                 if (!freelancer.VerifiedSkills.Any(vs => vs.SkillId == req.SkillId && vs.Status == VerifiedSkillStatus.Verified))
                 {
                     eligible = false;
@@ -59,14 +75,15 @@ public class MatchEngineService : IMatchEngineService
             }
             if (!eligible) continue;
 
-            // --- 2. Scoring ---
             decimal score = 0;
+            var reasons = new List<string>();
+            var reasonCodes = new List<string>();
+            int mandatoryCovered = 0;
+            int verifiedMatches = 0;
 
-            // Skill Match (40%) & Verified Skills (25%)
             if (project.SkillRequirements.Any())
             {
                 int matchedSkills = 0;
-                int verifiedMatches = 0;
                 foreach (var req in project.SkillRequirements)
                 {
                     bool isVerified = freelancer.VerifiedSkills.Any(vs => vs.SkillId == req.SkillId && vs.Status == VerifiedSkillStatus.Verified);
@@ -74,6 +91,7 @@ public class MatchEngineService : IMatchEngineService
                     {
                         matchedSkills++;
                         verifiedMatches++;
+                        if (req.IsMandatory) mandatoryCovered++;
                     }
                 }
 
@@ -82,19 +100,26 @@ public class MatchEngineService : IMatchEngineService
 
                 decimal verifiedRatio = (decimal)verifiedMatches / project.SkillRequirements.Count;
                 score += verifiedRatio * 25m;
-                
-                if (matchedSkills > 0) reasons.Add("Kỹ năng phù hợp với yêu cầu.");
-                if (verifiedMatches > 0) reasons.Add("Có kỹ năng đã được xác thực (Verified).");
+
+                if (matchedSkills > 0)
+                {
+                    reasonCodes.Add("required_skill");
+                    reasons.Add($"Đáp ứng {matchedSkills}/{project.SkillRequirements.Count} kỹ năng yêu cầu.");
+                }
+                if (verifiedMatches > 0)
+                {
+                    reasonCodes.Add("verified_skill");
+                    reasons.Add($"Có {verifiedMatches} kỹ năng đã qua kiểm định xác thực.");
+                }
             }
             else
             {
-                // If no skills required (edge case, though publish rules prevent it), give full points
-                score += 65m; 
+                score += 65m;
             }
 
-            // Experience (15%)
-            var maxExpReq = project.SkillRequirements.Max(r => r.MinimumExperienceYears) ?? 0;
-            // Also take project.ExperienceLevel into account (Entry: 1 yr, Intermediate: 3 yrs, Expert: 5 yrs)
+            var maxExpReq = project.SkillRequirements.Any()
+                ? (project.SkillRequirements.Max(r => r.MinimumExperienceYears) ?? 0)
+                : 0;
             int levelExpReq = project.ExperienceLevel switch
             {
                 ExperienceLevel.Expert => 5,
@@ -106,6 +131,7 @@ public class MatchEngineService : IMatchEngineService
             if (profile.YearsOfExperience.HasValue && profile.YearsOfExperience.Value >= effectiveExpReq)
             {
                 score += 15m;
+                reasonCodes.Add("experience");
                 reasons.Add($"Kinh nghiệm ({profile.YearsOfExperience} năm) đạt yêu cầu dự án ({project.ExperienceLevel}).");
             }
             else if (!profile.YearsOfExperience.HasValue && effectiveExpReq <= 1)
@@ -113,35 +139,43 @@ public class MatchEngineService : IMatchEngineService
                 score += 10m;
             }
 
-            // Budget Fit (10%)
             if (project.PricingType == PricingType.Hourly && project.HourlyRateMax.HasValue && profile.HourlyRate.HasValue)
             {
                 if (profile.HourlyRate.Value <= project.HourlyRateMax.Value)
                 {
                     score += 10m;
-                    reasons.Add("Mức lương theo giờ hoàn toàn phù hợp ngân sách.");
+                    reasonCodes.Add("budget_fit");
+                    reasons.Add("Mức thù lao theo giờ phù hợp ngân sách.");
                 }
             }
             else if (project.BudgetMax.HasValue && profile.HourlyRate.HasValue)
             {
-                // Simple heuristic: if hourly rate * 40 (approx 1 week) <= BudgetMax
                 if (profile.HourlyRate.Value * 40 <= project.BudgetMax.Value)
                 {
                     score += 10m;
-                    reasons.Add("Ngân sách phù hợp (dựa trên mức lương theo giờ).");
+                    reasonCodes.Add("budget_fit");
+                    reasons.Add("Ngân sách phù hợp với mức thù lao đề xuất.");
                 }
             }
             else
             {
                 score += 10m;
+                reasonCodes.Add("budget_fit");
+                reasons.Add("Phù hợp khung ngân sách dự án.");
             }
 
-            // Availability (10%)
             if (profile.IsAvailable)
             {
                 score += 10m;
-                reasons.Add("Sẵn sàng làm việc ngay.");
+                reasonCodes.Add("availability");
+                reasons.Add("Sẵn sàng bắt đầu ngay.");
             }
+
+            var payload = new StoredReasonsPayload
+            {
+                Codes = reasonCodes,
+                Reasons = reasons
+            };
 
             var match = new Match
             {
@@ -149,58 +183,67 @@ public class MatchEngineService : IMatchEngineService
                 FreelancerId = freelancer.Id,
                 Score = score,
                 MatchVersion = matchVersion,
-                ReasonsJson = JsonSerializer.Serialize(reasons),
+                ReasonsJson = JsonSerializer.Serialize(payload),
                 Status = MatchStatus.Generated,
                 CreatedAt = DateTime.UtcNow
             };
-            matchesToSave.Add(match);
+
+            candidates.Add(new RankedMatchCandidate
+            {
+                Match = match,
+                Freelancer = freelancer,
+                ReasonCodes = reasonCodes,
+                Reasons = reasons,
+                MandatoryCoveredCount = mandatoryCovered,
+                VerifiedCoveredCount = verifiedMatches,
+                IsAvailable = profile.IsAvailable
+            });
         }
 
-        // --- 3. Ranking & Top 3 ---
-        var top3 = matchesToSave
-            .OrderByDescending(m => m.Score)
-            .Take(3)
-            .ToList();
+        // Expire previous Generated / Recommended snapshots safely without touching Viewed or Dismissed records
+        var priorActiveMatches = await _context.Matches
+            .Where(m => m.ProjectId == projectId &&
+                        (m.Status == MatchStatus.Generated || m.Status == MatchStatus.Recommended))
+            .ToListAsync();
 
-        foreach (var m in top3) m.Status = MatchStatus.Recommended;
+        foreach (var oldMatch in priorActiveMatches)
+        {
+            oldMatch.Status = MatchStatus.Expired;
+        }
 
-        // Save to DB
-        _context.Matches.AddRange(top3);
+        var top3 = MatchRanker.RankTop(candidates, 3);
+        foreach (var item in top3)
+        {
+            item.Match.Status = MatchStatus.Recommended;
+        }
+
+        _context.Matches.AddRange(top3.Select(x => x.Match));
         await _context.SaveChangesAsync();
 
-        var dtos = top3.Select(m => new MatchDto
-        {
-            Id = m.Id,
-            ProjectId = m.ProjectId,
-            FreelancerId = m.FreelancerId,
-            FreelancerName = freelancers.First(f => f.Id == m.FreelancerId).FirstName + " " + freelancers.First(f => f.Id == m.FreelancerId).LastName,
-            Score = m.Score,
-            MatchVersion = m.MatchVersion,
-            Reasons = JsonSerializer.Deserialize<List<string>>(m.ReasonsJson) ?? new List<string>(),
-            Status = m.Status
-        }).ToList();
-
+        var dtos = top3.Select(x => MapToDto(x.Match, x.Freelancer, x.ReasonCodes, x.Reasons)).ToList();
         return (true, dtos, Array.Empty<string>());
     }
 
     public async Task<List<MatchDto>> GetMatchesForProjectAsync(Guid projectId, string clientId)
     {
-        return await _context.Matches
+        var matches = await _context.Matches
             .Include(m => m.Freelancer)
-            .Where(m => m.ProjectId == projectId && m.Project.ClientId == Guid.Parse(clientId))
+                .ThenInclude(f => f.FreelancerProfile)
+            .Include(m => m.Freelancer)
+                .ThenInclude(f => f.VerifiedSkills)
+                    .ThenInclude(vs => vs.Skill)
+            .Where(m => m.ProjectId == projectId &&
+                        m.Project.ClientId == Guid.Parse(clientId) &&
+                        m.Status != MatchStatus.Expired)
             .OrderByDescending(m => m.Score)
-            .Select(m => new MatchDto
-            {
-                Id = m.Id,
-                ProjectId = m.ProjectId,
-                FreelancerId = m.FreelancerId,
-                FreelancerName = m.Freelancer.FirstName + " " + m.Freelancer.LastName,
-                Score = m.Score,
-                MatchVersion = m.MatchVersion,
-                Reasons = string.IsNullOrEmpty(m.ReasonsJson) ? new List<string>() : (JsonSerializer.Deserialize<List<string>>(m.ReasonsJson, (JsonSerializerOptions?)null) ?? new List<string>()),
-                Status = m.Status
-            })
+            .ThenBy(m => m.FreelancerId)
             .ToListAsync();
+
+        return matches.Select(m =>
+        {
+            var (codes, reasons) = ParseReasonsJson(m.ReasonsJson);
+            return MapToDto(m, m.Freelancer, codes, reasons);
+        }).ToList();
     }
 
     public async Task<(bool Success, string[] Errors)> UpdateMatchStatusAsync(Guid matchId, MatchStatus status, string clientId)
@@ -215,5 +258,54 @@ public class MatchEngineService : IMatchEngineService
         await _context.SaveChangesAsync();
 
         return (true, Array.Empty<string>());
+    }
+
+    private static MatchDto MapToDto(Match m, User freelancer, List<string> codes, List<string> reasons)
+    {
+        var profile = freelancer.FreelancerProfile;
+        return new MatchDto
+        {
+            Id = m.Id,
+            ProjectId = m.ProjectId,
+            FreelancerId = m.FreelancerId,
+            FreelancerName = $"{freelancer.FirstName} {freelancer.LastName}".Trim(),
+            Headline = profile?.Headline ?? string.Empty,
+            HourlyRate = profile?.HourlyRate,
+            YearsOfExperience = profile?.YearsOfExperience,
+            JobSuccessScore = profile?.JobSuccessScore ?? 100m,
+            VerifiedSkills = freelancer.VerifiedSkills
+                .Where(vs => vs.Status == VerifiedSkillStatus.Verified && vs.Skill != null)
+                .Select(vs => vs.Skill.Name)
+                .Distinct()
+                .ToList(),
+            Score = m.Score,
+            MatchVersion = m.MatchVersion,
+            ReasonCodes = codes,
+            Reasons = reasons,
+            Status = m.Status
+        };
+    }
+
+    private static (List<string> Codes, List<string> Reasons) ParseReasonsJson(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return (new List<string>(), new List<string>());
+
+        try
+        {
+            var trimmed = json.TrimStart();
+            if (trimmed.StartsWith("["))
+            {
+                var list = JsonSerializer.Deserialize<List<string>>(json) ?? new List<string>();
+                return (new List<string>(), list);
+            }
+
+            var payload = JsonSerializer.Deserialize<StoredReasonsPayload>(json);
+            return (payload?.Codes ?? new List<string>(), payload?.Reasons ?? new List<string>());
+        }
+        catch
+        {
+            return (new List<string>(), new List<string>());
+        }
     }
 }

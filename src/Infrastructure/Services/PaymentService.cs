@@ -156,5 +156,58 @@ public class PaymentService : IPaymentService
 
         return result;
     }
+
+    public async Task<List<PaymentTransactionDto>> GetUserTransactionsAsync(string userId, string? role = null)
+    {
+        if (!Guid.TryParse(userId, out var userGuid)) return new List<PaymentTransactionDto>();
+
+        var query = _context.PaymentTransactions
+            .Include(t => t.Contract)
+                .ThenInclude(c => c.Project)
+            .Include(t => t.Milestone)
+            .Include(t => t.Payer)
+            .Include(t => t.Payee)
+            .AsQueryable();
+
+        if (string.Equals(role, "Client", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(t => t.PayerId == userGuid);
+        }
+        else if (string.Equals(role, "Freelancer", StringComparison.OrdinalIgnoreCase))
+        {
+            query = query.Where(t => t.PayeeId == userGuid);
+        }
+        else
+        {
+            query = query.Where(t => t.PayerId == userGuid || t.PayeeId == userGuid);
+        }
+
+        var transactions = await query
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
+
+        return transactions.Select(t =>
+        {
+            var isPayer = t.PayerId == userGuid;
+            var counterparty = isPayer ? t.Payee : t.Payer;
+            return new PaymentTransactionDto
+            {
+                Id = t.Id,
+                ContractId = t.ContractId,
+                MilestoneId = t.MilestoneId,
+                ProjectTitle = t.Contract?.Project?.Title ?? string.Empty,
+                MilestoneTitle = t.Milestone?.Title ?? string.Empty,
+                CounterpartyName = counterparty != null ? $"{counterparty.LastName} {counterparty.FirstName}".Trim() : string.Empty,
+                Amount = t.Amount,
+                Currency = t.Currency,
+                PaymentMethod = t.PaymentMethod,
+                Status = t.Status,
+                TransactionCode = t.TransactionCode,
+                QrUrl = t.QrUrl,
+                CreatedAt = t.CreatedAt,
+                CompletedAt = t.CompletedAt
+            };
+        }).ToList();
+    }
 }
 

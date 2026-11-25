@@ -79,5 +79,17 @@ public class PaymentsController : ControllerBase
 
         return Ok(ApiResponse<object>.Ok(new { Message = "Xác nhận thanh toán và nghiệm thu mốc thành công." }));
     }
+
+    [Authorize]
+    [HttpGet("my-transactions")]
+    public async Task<ActionResult<ApiResponse<List<PaymentTransactionDto>>>> GetMyTransactions()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+        var role = User.FindFirstValue(ClaimTypes.Role);
+
+        var items = await _paymentService.GetUserTransactionsAsync(userId, role);
+        return Ok(ApiResponse<List<PaymentTransactionDto>>.Ok(items));
+    }
 }
 

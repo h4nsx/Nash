@@ -13,6 +13,11 @@ public interface IUserService
     Task<(bool Success, string[] Errors)> UpdateFreelancerProfileAsync(string userId, UpdateFreelancerProfileDto request);
     Task<PublicFreelancerDto?> GetPublicFreelancerByIdAsync(Guid freelancerId);
     Task<List<PublicFreelancerDto>> GetPublicFreelancersAsync(string? skill = null, string? search = null);
+
+    // Client Profile
+    Task<ClientProfileDto?> GetClientProfileAsync(string userId);
+    Task<(bool Success, string[] Errors)> UpdateClientProfileAsync(string userId, UpdateClientProfileDto request);
+    Task<PublicClientDto?> GetPublicClientByIdAsync(Guid clientId);
 }
 
 public class UserDto
@@ -153,6 +158,8 @@ public class PublicFreelancerDto
     public string? LinkedinUrl { get; set; }
     public string? WebsiteUrl { get; set; }
     public decimal JobSuccessScore { get; set; }
+    public decimal AverageRating { get; set; }
+    public int ReviewsCount { get; set; }
     public List<string> VerifiedSkills { get; set; } = new();
     public int CompletedProjectsCount { get; set; }
     public List<PortfolioItemDto> PortfolioItems { get; set; } = new();
@@ -160,4 +167,67 @@ public class PublicFreelancerDto
     public List<EducationDto> Educations { get; set; } = new();
     public List<CertificationDto> Certifications { get; set; } = new();
     public List<LanguageProficiencyDto> Languages { get; set; } = new();
+    public List<FreelancerReviewSummaryDto> Reviews { get; set; } = new();
+}
+
+public class FreelancerReviewSummaryDto
+{
+    public Guid Id { get; set; }
+    public int Rating { get; set; }
+    public string Comment { get; set; } = string.Empty;
+    public string ReviewerName { get; set; } = string.Empty;
+    public DateTime CreatedAt { get; set; }
+}
+
+public class ClientProfileDto
+{
+    public Guid Id { get; set; }
+    public Guid UserId { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string CompanyName { get; set; } = string.Empty;
+    public string Industry { get; set; } = string.Empty;
+    public string CompanySize { get; set; } = string.Empty;
+    public string WebsiteUrl { get; set; } = string.Empty;
+    public string TaxCode { get; set; } = string.Empty;
+    public string BillingAddress { get; set; } = string.Empty;
+    public string City { get; set; } = string.Empty;
+    public string Country { get; set; } = "Việt Nam";
+    public string ContactPhone { get; set; } = string.Empty;
+    public string Bio { get; set; } = string.Empty;
+    public int PublishedProjectsCount { get; set; }
+    public int ActiveContractsCount { get; set; }
+    public int CompletedContractsCount { get; set; }
+}
+
+public class UpdateClientProfileDto
+{
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+    public string CompanyName { get; set; } = string.Empty;
+    public string Industry { get; set; } = string.Empty;
+    public string CompanySize { get; set; } = string.Empty;
+    public string WebsiteUrl { get; set; } = string.Empty;
+    public string TaxCode { get; set; } = string.Empty;
+    public string BillingAddress { get; set; } = string.Empty;
+    public string City { get; set; } = string.Empty;
+    public string Country { get; set; } = "Việt Nam";
+    public string ContactPhone { get; set; } = string.Empty;
+    public string Bio { get; set; } = string.Empty;
+}
+
+public class PublicClientDto
+{
+    public Guid Id { get; set; }
+    public string DisplayName { get; set; } = string.Empty;
+    public string CompanyName { get; set; } = string.Empty;
+    public string Industry { get; set; } = string.Empty;
+    public string CompanySize { get; set; } = string.Empty;
+    public string WebsiteUrl { get; set; } = string.Empty;
+    public string City { get; set; } = string.Empty;
+    public string Country { get; set; } = string.Empty;
+    public string Bio { get; set; } = string.Empty;
+    public int PublishedProjectsCount { get; set; }
+    public int CompletedContractsCount { get; set; }
 }

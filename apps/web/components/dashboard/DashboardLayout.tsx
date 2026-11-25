@@ -11,8 +11,22 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (isInitialized && !user) {
+    if (!isInitialized) return;
+    if (!user) {
       router.push('/login');
+      return;
+    }
+
+    const path = router.pathname;
+    if (path.startsWith('/dashboard/client') && user.role !== 'Client') {
+      router.replace('/dashboard');
+      return;
+    }
+    if (
+      (path.startsWith('/dashboard/skills') || path.startsWith('/dashboard/profile')) &&
+      user.role === 'Client'
+    ) {
+      router.replace('/dashboard/client/profile');
     }
   }, [user, isInitialized, router]);
 

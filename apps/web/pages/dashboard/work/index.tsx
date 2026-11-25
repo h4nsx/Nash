@@ -20,7 +20,9 @@ import {
   Check,
   RotateCcw,
   FileText,
-  Star
+  Star,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 
 export interface Milestone {
@@ -96,6 +98,16 @@ export default function WorkContractsPage() {
   const [newMilestoneDueDate, setNewMilestoneDueDate] = useState('');
   const [creatingMilestone, setCreatingMilestone] = useState(false);
   const [createMilestoneError, setCreateMilestoneError] = useState<string | null>(null);
+
+  // Client Edit / Delete Milestone state
+  const [editingMilestone, setEditingMilestone] = useState<Milestone | null>(null);
+  const [editMilestoneTitle, setEditMilestoneTitle] = useState('');
+  const [editMilestoneDescription, setEditMilestoneDescription] = useState('');
+  const [editMilestoneAmount, setEditMilestoneAmount] = useState('');
+  const [editMilestoneDueDate, setEditMilestoneDueDate] = useState('');
+  const [updatingMilestone, setUpdatingMilestone] = useState(false);
+  const [updateMilestoneError, setUpdateMilestoneError] = useState<string | null>(null);
+  const [deletingMilestoneId, setDeletingMilestoneId] = useState<string | null>(null);
 
   // Cancel Contract modal state
   const [targetContractToCancel, setTargetContractToCancel] = useState<Contract | null>(null);
@@ -339,6 +351,57 @@ export default function WorkContractsPage() {
       }
     } finally {
       setCreatingMilestone(false);
+    }
+  };
+
+  // Client: Update Milestone
+  const handleUpdateMilestone = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingMilestone) return;
+
+    try {
+      setUpdatingMilestone(true);
+      setUpdateMilestoneError(null);
+
+      const res = await apiClient(`/work/milestones/${editingMilestone.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          title: editMilestoneTitle,
+          description: editMilestoneDescription,
+          amount: parseFloat(editMilestoneAmount),
+          dueDate: new Date(editMilestoneDueDate).toISOString(),
+        }),
+      });
+
+      if (res.success) {
+        setEditingMilestone(null);
+        await fetchContracts();
+      }
+    } catch (err: unknown) {
+      if (err instanceof ApiException) {
+        setUpdateMilestoneError(err.error?.message || 'Không thể cập nhật cột mốc.');
+      } else {
+        setUpdateMilestoneError('Lỗi kết nối khi cập nhật cột mốc.');
+      }
+    } finally {
+      setUpdatingMilestone(false);
+    }
+  };
+
+  // Client: Delete Pending Milestone
+  const handleDeleteMilestone = async (milestoneId: string) => {
+    try {
+      setDeletingMilestoneId(milestoneId);
+      const res = await apiClient(`/work/milestones/${milestoneId}`, {
+        method: 'DELETE',
+      });
+      if (res.success) {
+        await fetchContracts();
+      }
+    } catch (err: unknown) {
+      alert(err instanceof ApiException ? err.error.message : 'Không thể xóa cột mốc.');
+    } finally {
+      setDeletingMilestoneId(null);
     }
   };
 
@@ -741,8 +804,38 @@ export default function WorkContractsPage() {
                   </div>
 
                   {/* Milestones List */}
-                  {isExpanded && (
+                  {isExpanded && (() => {
+                    const allocatedBudget = contract.milestones?.reduce((sum, m) => sum + (m.amount || 0), 0) || 0;
+                    const remainingBudget = Math.max(0, (contract.agreedBudget || 0) - allocatedBudget);
+                    const allocationPct = contract.agreedBudget > 0
+                      ? Math.min(100, Math.round((allocatedBudget / contract.agreedBudget) * 100))
+                      : 0;
+
+                    return (
                     <div className="border-t border-border bg-surface-subtle/30 p-5 space-y-3">
+                      {/* Milestone Budget Allocation Bar */}
+                      <div className="rounded-xl border border-border bg-surface p-3.5 space-y-2 text-xs">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <span className="font-semibold text-foreground">
+                            Phân bổ ngân sách cột mốc ({allocationPct}%)
+                          </span>
+                          <div className="font-mono text-2xs text-text-secondary">
+                            Đã phân bổ: <strong className="text-foreground">{formatCurrency(allocatedBudget)}</strong> / {formatCurrency(contract.agreedBudget)}
+                            {remainingBudget > 0 && (
+                              <span className="ml-2 text-emerald-700 font-semibold">
+                                • Còn lại: {formatCurrency(remainingBudget)}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="h-2 w-full rounded-full bg-surface-subtle overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-primary transition-all"
+                            style={{ width: `${allocationPct}%` }}
+                          />
+                        </div>
+                      </div>
+
                       <div className="flex items-center justify-between mb-2">
                         <div className="text-xs font-bold uppercase tracking-wider text-text-secondary">
                           Tiến độ các mốc thanh toán ({totalMilestones})
@@ -852,6 +945,41 @@ export default function WorkContractsPage() {
                                     </button>
                                   )}
 
+                                  {/* Client Edit / Delete Actions for Eligible Milestones */}
+                                  {isClient && contract.status === 1 && milestone.status !== 2 && milestone.status !== 4 && (
+                                    <div className="flex items-center gap-1.5">
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEditingMilestone(milestone);
+                                          setEditMilestoneTitle(milestone.title);
+                                          setEditMilestoneDescription(milestone.description || '');
+                                          setEditMilestoneAmount(String(milestone.amount));
+                                          setEditMilestoneDueDate(
+                                            milestone.dueDate ? milestone.dueDate.substring(0, 10) : ''
+                                          );
+                                          setUpdateMilestoneError(null);
+                                        }}
+                                        className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-2xs font-semibold text-foreground hover:bg-surface-subtle cursor-pointer"
+                                        title="Chỉnh sửa cột mốc"
+                                      >
+                                        <Pencil className="h-3 w-3" /> Sửa
+                                      </button>
+                                      {milestone.status === 0 && (
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteMilestone(milestone.id)}
+                                          disabled={deletingMilestoneId === milestone.id}
+                                          className="inline-flex items-center gap-1 rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-2xs font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-50 cursor-pointer"
+                                          title="Xóa cột mốc chờ"
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                          {deletingMilestoneId === milestone.id ? '...' : 'Xóa'}
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+
                                   {/* Client Review Actions */}
                                   {canReview && (
                                     <div className="flex items-center gap-2">
@@ -880,7 +1008,8 @@ export default function WorkContractsPage() {
                         </div>
                       )}
                     </div>
-                  )}
+                    );
+                  })()}
 
                 </div>
               );
@@ -1005,6 +1134,96 @@ export default function WorkContractsPage() {
                   className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-2 text-xs font-semibold text-white shadow-xs transition-colors cursor-pointer"
                 >
                   {reviewing ? 'Đang gửi...' : 'Gửi yêu cầu sửa'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Client: Edit Milestone Modal */}
+      {editingMilestone && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div>
+                <h3 className="text-sm font-bold text-foreground">Chỉnh Sửa Cột Mốc</h3>
+                <p className="text-2xs text-text-muted mt-0.5">{editingMilestone.title}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setEditingMilestone(null)}
+                className="rounded-lg p-1 text-text-muted hover:text-foreground cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {updateMilestoneError && (
+              <div className="rounded-lg bg-danger-bg p-3 text-xs text-danger border border-rose-200">
+                {updateMilestoneError}
+              </div>
+            )}
+
+            <form onSubmit={handleUpdateMilestone} className="space-y-3 text-xs">
+              <div>
+                <label className="block font-semibold text-foreground mb-1">Tiêu đề mốc *</label>
+                <input
+                  type="text"
+                  required
+                  value={editMilestoneTitle}
+                  onChange={(e) => setEditMilestoneTitle(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-foreground mb-1">Mô tả yêu cầu bàn giao</label>
+                <textarea
+                  rows={3}
+                  value={editMilestoneDescription}
+                  onChange={(e) => setEditMilestoneDescription(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-foreground mb-1">Số tiền (VND) *</label>
+                  <input
+                    type="number"
+                    required
+                    value={editMilestoneAmount}
+                    onChange={(e) => setEditMilestoneAmount(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground font-mono focus:border-primary focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-foreground mb-1">Hạn chót *</label>
+                  <input
+                    type="date"
+                    required
+                    value={editMilestoneDueDate}
+                    onChange={(e) => setEditMilestoneDueDate(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setEditingMilestone(null)}
+                  className="rounded-lg border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={updatingMilestone}
+                  className="rounded-lg bg-primary hover:bg-primary-hover px-4 py-1.5 text-xs font-semibold text-white shadow-xs disabled:opacity-50 cursor-pointer"
+                >
+                  {updatingMilestone ? 'Đang lưu...' : 'Lưu thay đổi'}
                 </button>
               </div>
             </form>

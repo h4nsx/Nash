@@ -333,11 +333,24 @@ public class UserService : IUserService
             .Include(u => u.VerifiedSkills)
                 .ThenInclude(vs => vs.Skill)
             .Include(u => u.ContractsAsFreelancer)
+            .Include(u => u.ReviewsReceived)
+                .ThenInclude(r => r.Reviewer)
             .FirstOrDefaultAsync(u => u.Id == freelancerId && u.Role == Role.Freelancer);
 
         if (user == null) return null;
 
         var profile = user.FreelancerProfile;
+        var reviews = user.ReviewsReceived
+            .OrderByDescending(r => r.CreatedAt)
+            .Select(r => new FreelancerReviewSummaryDto
+            {
+                Id = r.Id,
+                Rating = r.Rating,
+                Comment = r.Comment,
+                ReviewerName = r.Reviewer != null ? $"{r.Reviewer.LastName} {r.Reviewer.FirstName}".Trim() : "Khách hàng",
+                CreatedAt = r.CreatedAt
+            })
+            .ToList();
 
         return new PublicFreelancerDto
         {
@@ -357,8 +370,11 @@ public class UserService : IUserService
             LinkedinUrl = profile?.LinkedinUrl,
             WebsiteUrl = profile?.WebsiteUrl,
             JobSuccessScore = profile?.JobSuccessScore ?? 100,
+            AverageRating = reviews.Count > 0 ? Math.Round((decimal)reviews.Average(r => r.Rating), 1) : 0m,
+            ReviewsCount = reviews.Count,
             VerifiedSkills = user.VerifiedSkills.Select(vs => vs.Skill.Name).Distinct().ToList(),
             CompletedProjectsCount = user.ContractsAsFreelancer.Count(c => c.Status == ContractStatus.Completed),
+            Reviews = reviews,
             PortfolioItems = profile?.PortfolioItems.Select(p => new PortfolioItemDto
             {
                 Id = p.Id,
@@ -424,6 +440,7 @@ public class UserService : IUserService
             .Include(u => u.VerifiedSkills)
                 .ThenInclude(vs => vs.Skill)
             .Include(u => u.ContractsAsFreelancer)
+            .Include(u => u.ReviewsReceived)
             .Where(u => u.Role == Role.Freelancer && (u.FreelancerProfile == null || u.FreelancerProfile.IsAvailable));
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -465,6 +482,8 @@ public class UserService : IUserService
             LinkedinUrl = u.FreelancerProfile?.LinkedinUrl,
             WebsiteUrl = u.FreelancerProfile?.WebsiteUrl,
             JobSuccessScore = u.FreelancerProfile?.JobSuccessScore ?? 100,
+            AverageRating = u.ReviewsReceived.Any() ? Math.Round((decimal)u.ReviewsReceived.Average(r => r.Rating), 1) : 0m,
+            ReviewsCount = u.ReviewsReceived.Count,
             VerifiedSkills = u.VerifiedSkills.Select(vs => vs.Skill.Name).Distinct().ToList(),
             CompletedProjectsCount = u.ContractsAsFreelancer.Count(c => c.Status == ContractStatus.Completed),
             PortfolioItems = u.FreelancerProfile?.PortfolioItems.Select(p => new PortfolioItemDto
@@ -514,6 +533,134 @@ public class UserService : IUserService
                 ProficiencyLevel = l.ProficiencyLevel
             }).ToList() ?? new List<LanguageProficiencyDto>()
         }).ToList();
+    }
+
+    public async Task<ClientProfileDto?> GetClientProfileAsync(string userId)
+    {
+        if (!Guid.TryParse(userId, out var userGuid)) return null;
+
+        var user = await _context.DomainUsers
+            .Include(u => u.ClientProfile)
+            .Include(u => u.Projects)
+                .ThenInclude(p => p.Contracts)
+            .FirstOrDefaultAsync(u => u.Id == userGuid);
+
+        if (user == null || user.Role != Role.Client)
+            return null;
+
+        if (user.ClientProfile == null)
+        {
+            var newProfile = new ClientProfile
+            {
+                UserId = user.Id,
+                Country = "Việt Nam",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+            _context.ClientProfiles.Add(newProfile);
+            await _context.SaveChangesAsync();
+            user.ClientProfile = newProfile;
+        }
+
+        var profile = user.ClientProfile;
+        var allContracts = user.Projects.SelectMany(p => p.Contracts).ToList();
+
+        return new ClientProfileDto
+        {
+            Id = profile.Id,
+            UserId = user.Id,
+            Email = user.Email,
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            CompanyName = profile.CompanyName,
+            Industry = profile.Industry,
+            CompanySize = profile.CompanySize,
+            WebsiteUrl = profile.WebsiteUrl,
+            TaxCode = profile.TaxCode,
+            BillingAddress = profile.BillingAddress,
+            City = profile.City,
+            Country = profile.Country,
+            ContactPhone = profile.ContactPhone,
+            Bio = profile.Bio,
+            PublishedProjectsCount = user.Projects.Count(p => p.Status != ProjectStatus.Draft && p.Status != ProjectStatus.Cancelled),
+            ActiveContractsCount = allContracts.Count(c => c.Status == ContractStatus.Active),
+            CompletedContractsCount = allContracts.Count(c => c.Status == ContractStatus.Completed)
+        };
+    }
+
+    public async Task<(bool Success, string[] Errors)> UpdateClientProfileAsync(string userId, UpdateClientProfileDto request)
+    {
+        if (!Guid.TryParse(userId, out var userGuid))
+            return (false, new[] { "Mã người dùng không hợp lệ." });
+
+        var user = await _context.DomainUsers
+            .Include(u => u.ClientProfile)
+            .FirstOrDefaultAsync(u => u.Id == userGuid);
+
+        if (user == null || user.Role != Role.Client)
+        {
+            return (false, new[] { "Không tìm thấy hồ sơ Khách hàng." });
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.FirstName))
+            user.FirstName = request.FirstName.Trim();
+        if (!string.IsNullOrWhiteSpace(request.LastName))
+            user.LastName = request.LastName.Trim();
+
+        if (user.ClientProfile == null)
+        {
+            user.ClientProfile = new ClientProfile
+            {
+                UserId = user.Id,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.ClientProfiles.Add(user.ClientProfile);
+        }
+
+        var profile = user.ClientProfile;
+        profile.CompanyName = request.CompanyName?.Trim() ?? string.Empty;
+        profile.Industry = request.Industry?.Trim() ?? string.Empty;
+        profile.CompanySize = request.CompanySize?.Trim() ?? string.Empty;
+        profile.WebsiteUrl = request.WebsiteUrl?.Trim() ?? string.Empty;
+        profile.TaxCode = request.TaxCode?.Trim() ?? string.Empty;
+        profile.BillingAddress = request.BillingAddress?.Trim() ?? string.Empty;
+        profile.City = request.City?.Trim() ?? string.Empty;
+        profile.Country = string.IsNullOrWhiteSpace(request.Country) ? "Việt Nam" : request.Country.Trim();
+        profile.ContactPhone = request.ContactPhone?.Trim() ?? string.Empty;
+        profile.Bio = request.Bio?.Trim() ?? string.Empty;
+        profile.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return (true, Array.Empty<string>());
+    }
+
+    public async Task<PublicClientDto?> GetPublicClientByIdAsync(Guid clientId)
+    {
+        var user = await _context.DomainUsers
+            .Include(u => u.ClientProfile)
+            .Include(u => u.Projects)
+                .ThenInclude(p => p.Contracts)
+            .FirstOrDefaultAsync(u => u.Id == clientId && u.Role == Role.Client);
+
+        if (user == null) return null;
+
+        var profile = user.ClientProfile;
+        var contracts = user.Projects.SelectMany(p => p.Contracts).ToList();
+
+        return new PublicClientDto
+        {
+            Id = user.Id,
+            DisplayName = $"{user.LastName} {user.FirstName}".Trim(),
+            CompanyName = profile?.CompanyName ?? string.Empty,
+            Industry = profile?.Industry ?? string.Empty,
+            CompanySize = profile?.CompanySize ?? string.Empty,
+            WebsiteUrl = profile?.WebsiteUrl ?? string.Empty,
+            City = profile?.City ?? string.Empty,
+            Country = profile?.Country ?? "Việt Nam",
+            Bio = profile?.Bio ?? string.Empty,
+            PublishedProjectsCount = user.Projects.Count(p => p.Status != ProjectStatus.Draft && p.Status != ProjectStatus.Cancelled),
+            CompletedContractsCount = contracts.Count(c => c.Status == ContractStatus.Completed)
+        };
     }
 
     private static List<string> DeserializeList(string json)

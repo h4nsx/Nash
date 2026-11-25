@@ -17,6 +17,7 @@ public class User : Entity
     public ICollection<Project> Projects { get; set; } = new List<Project>();
     
     public FreelancerProfile? FreelancerProfile { get; set; }
+    public ClientProfile? ClientProfile { get; set; }
     public ICollection<Match> Matches { get; set; } = new List<Match>();
     
     // Phase 5: Handshake Navigation

@@ -91,6 +91,8 @@ app.UseSwaggerUI(c =>
     c.RoutePrefix = "swagger";
 });
 
+app.UseStaticFiles();
+
 app.UseCors("DefaultCorsPolicy");
 
 app.UseRateLimiter();

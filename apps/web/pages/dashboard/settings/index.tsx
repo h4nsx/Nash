@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { apiClient, ApiException } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthContext';
@@ -231,13 +232,23 @@ export default function SettingsPage() {
       <div className="mx-auto max-w-4xl space-y-6 pb-12">
         
         {/* Header */}
-        <div className="pb-4 border-b border-border">
-          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-            Cài đặt tài khoản
-          </h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-text-secondary">
-            Quản lý thông tin hồ sơ chuyên môn, tùy chọn thông báo và thiết lập bảo mật tài khoản.
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-border">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+              Cài đặt tài khoản
+            </h1>
+            <p className="mt-0.5 text-xs sm:text-sm text-text-secondary">
+              Quản lý thông tin hồ sơ chuyên môn, tùy chọn thông báo và thiết lập bảo mật tài khoản.
+            </p>
+          </div>
+          {isClient && (
+            <Link
+              href="/dashboard/client/profile"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary-soft/30 px-3.5 py-2 text-xs font-semibold text-primary hover:bg-primary-soft/60 self-start sm:self-auto"
+            >
+              Quản lý Hồ sơ Doanh nghiệp &amp; Mã số thuế →
+            </Link>
+          )}
         </div>
 
         {error && (

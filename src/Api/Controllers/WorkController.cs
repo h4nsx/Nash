@@ -74,6 +74,36 @@ public class WorkController : ControllerBase
         return Ok(ApiResponse<object>.Ok(new { Id = milestoneId, Message = "Tạo mốc thanh toán thành công." }));
     }
 
+    [HttpPut("milestones/{id}")]
+    [Authorize(Roles = "Client")]
+    public async Task<ActionResult<ApiResponse<object>>> UpdateMilestone(Guid id, [FromBody] UpdateMilestoneDto request)
+    {
+        var clientId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (clientId == null) return Unauthorized();
+
+        var (success, errors) = await _workService.UpdateMilestoneAsync(id, request, clientId);
+
+        if (!success)
+            return BadRequest(new ApiErrorResponse { StatusCode = 400, Code = "UPDATE_MILESTONE_FAILED", Message = errors.FirstOrDefault() ?? "Lỗi cập nhật mốc thanh toán." });
+
+        return Ok(ApiResponse<object>.Ok(new { Message = "Cập nhật mốc thanh toán thành công." }));
+    }
+
+    [HttpDelete("milestones/{id}")]
+    [Authorize(Roles = "Client")]
+    public async Task<ActionResult<ApiResponse<object>>> DeleteMilestone(Guid id)
+    {
+        var clientId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (clientId == null) return Unauthorized();
+
+        var (success, errors) = await _workService.DeleteMilestoneAsync(id, clientId);
+
+        if (!success)
+            return BadRequest(new ApiErrorResponse { StatusCode = 400, Code = "DELETE_MILESTONE_FAILED", Message = errors.FirstOrDefault() ?? "Lỗi xóa mốc thanh toán." });
+
+        return Ok(ApiResponse<object>.Ok(new { Message = "Đã xóa mốc thanh toán." }));
+    }
+
     [HttpPost("milestones/{id}/submit")]
     [HttpPut("milestones/{id}/submit")]
     [Authorize(Roles = "Freelancer")]

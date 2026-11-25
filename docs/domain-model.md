@@ -1,7 +1,7 @@
 # Domain Model
 
 ## Entities
-User, FreelancerProfile, ClientProfile, Skill, SkillTest, SkillTestAttempt, VerifiedSkill, Project, ProjectSkillRequirement, Match, Invitation, ContractDraft, Contract, Milestone, Review, Media, CMS content, Notification, AuditLog.
+User, FreelancerProfile, ClientProfile, Skill, SkillTest, SkillTestAttempt, VerifiedSkill, Project, ProjectSkillRequirement, Match, Invitation, ContractDraft, Contract, Milestone, Review, PaymentTransaction, MediaAsset, CMS content, Notification, AuditLog.
 
 ## Key relations
 ```text

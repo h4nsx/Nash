@@ -237,7 +237,7 @@ export function Topbar({ onToggleMobileMenu }: TopbarProps) {
 
         {/* User Pill */}
         <Link
-          href={user?.role === 'Client' ? '/dashboard/client/projects' : '/dashboard/profile'}
+          href={user?.role === 'Client' ? '/dashboard/client/profile' : '/dashboard/profile'}
           className="flex items-center gap-2.5 rounded-lg p-1.5 hover:bg-surface-subtle transition-colors group cursor-pointer"
         >
           <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-primary to-primary-focus text-white font-bold text-xs uppercase flex items-center justify-center shrink-0 shadow-xs ring-2 ring-white">

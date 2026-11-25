@@ -19,12 +19,22 @@ public class WorkService : IWorkService
 
     public async Task<(bool Success, Guid MilestoneId, string[] Errors)> CreateMilestoneAsync(Guid contractId, CreateMilestoneDto request, string clientId)
     {
+        if (request.Amount <= 0)
+            return (false, Guid.Empty, new[] { "Số tiền cột mốc phải lớn hơn 0 VND." });
+
         var contract = await _context.Contracts
             .Include(c => c.Project)
+            .Include(c => c.Milestones)
             .FirstOrDefaultAsync(c => c.Id == contractId && c.Project.ClientId == Guid.Parse(clientId));
 
         if (contract == null) return (false, Guid.Empty, new[] { "Không tìm thấy hợp đồng hoặc bạn không có quyền thao tác." });
         if (contract.Status != ContractStatus.Active) return (false, Guid.Empty, new[] { "Chỉ có thể tạo mốc thanh toán cho hợp đồng đang hoạt động." });
+
+        var allocatedSum = contract.Milestones.Sum(m => m.Amount);
+        if (allocatedSum + request.Amount > contract.AgreedBudget)
+        {
+            return (false, Guid.Empty, new[] { $"Tổng giá trị các cột mốc ({allocatedSum + request.Amount:N0} VND) vượt quá ngân sách hợp đồng ({contract.AgreedBudget:N0} VND)." });
+        }
 
         var milestone = new Milestone
         {
@@ -32,7 +42,7 @@ public class WorkService : IWorkService
             Title = request.Title,
             Description = request.Description,
             Amount = request.Amount,
-            DueDate = request.DueDate,
+            DueDate = request.DueDate.ToUniversalTime(),
             Status = MilestoneStatus.Pending,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -40,8 +50,67 @@ public class WorkService : IWorkService
 
         _context.Milestones.Add(milestone);
         await _context.SaveChangesAsync();
-        
+
         return (true, milestone.Id, Array.Empty<string>());
+    }
+
+    public async Task<(bool Success, string[] Errors)> UpdateMilestoneAsync(Guid milestoneId, UpdateMilestoneDto request, string clientId)
+    {
+        if (request.Amount <= 0)
+            return (false, new[] { "Số tiền cột mốc phải lớn hơn 0 VND." });
+
+        if (string.IsNullOrWhiteSpace(request.Title))
+            return (false, new[] { "Tiêu đề cột mốc không được để trống." });
+
+        var milestone = await _context.Milestones
+            .Include(m => m.Contract)
+                .ThenInclude(c => c.Project)
+            .Include(m => m.Contract)
+                .ThenInclude(c => c.Milestones)
+            .FirstOrDefaultAsync(m => m.Id == milestoneId && m.Contract.Project.ClientId == Guid.Parse(clientId));
+
+        if (milestone == null) return (false, new[] { "Không tìm thấy cột mốc hoặc bạn không có quyền thao tác." });
+        if (milestone.Contract.Status != ContractStatus.Active)
+            return (false, new[] { "Chỉ có thể chỉnh sửa cột mốc khi hợp đồng đang hoạt động." });
+
+        if (milestone.Status == MilestoneStatus.Submitted || milestone.Status == MilestoneStatus.Accepted)
+            return (false, new[] { "Không thể chỉnh sửa cột mốc đã nộp bài hoặc đã nghiệm thu." });
+
+        var otherSum = milestone.Contract.Milestones.Where(m => m.Id != milestoneId).Sum(m => m.Amount);
+        if (otherSum + request.Amount > milestone.Contract.AgreedBudget)
+        {
+            return (false, new[] { $"Tổng giá trị các cột mốc ({otherSum + request.Amount:N0} VND) vượt quá ngân sách hợp đồng ({milestone.Contract.AgreedBudget:N0} VND)." });
+        }
+
+        milestone.Title = request.Title.Trim();
+        milestone.Description = request.Description?.Trim() ?? string.Empty;
+        milestone.Amount = request.Amount;
+        milestone.DueDate = request.DueDate.ToUniversalTime();
+        milestone.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        return (true, Array.Empty<string>());
+    }
+
+    public async Task<(bool Success, string[] Errors)> DeleteMilestoneAsync(Guid milestoneId, string clientId)
+    {
+        var milestone = await _context.Milestones
+            .Include(m => m.Contract)
+                .ThenInclude(c => c.Project)
+            .Include(m => m.Contract)
+                .ThenInclude(c => c.Milestones)
+            .FirstOrDefaultAsync(m => m.Id == milestoneId && m.Contract.Project.ClientId == Guid.Parse(clientId));
+
+        if (milestone == null) return (false, new[] { "Không tìm thấy cột mốc hoặc bạn không có quyền thao tác." });
+        if (milestone.Contract.Status != ContractStatus.Active)
+            return (false, new[] { "Chỉ có thể xóa cột mốc khi hợp đồng đang hoạt động." });
+
+        if (milestone.Status != MilestoneStatus.Pending)
+            return (false, new[] { "Chỉ có thể xóa cột mốc đang ở trạng thái Chờ thực hiện (Pending)." });
+
+        _context.Milestones.Remove(milestone);
+        await _context.SaveChangesAsync();
+        return (true, Array.Empty<string>());
     }
 
     public async Task<(bool Success, string[] Errors)> SubmitMilestoneAsync(Guid milestoneId, string notes, string freelancerId)

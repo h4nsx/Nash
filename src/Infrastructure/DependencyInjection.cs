@@ -65,6 +65,7 @@ public static class DependencyInjection
             services.AddScoped<IPaymentService, PaymentService>();
             services.AddScoped<ISystemSettingsService, SystemSettingsService>();
             services.AddScoped<ICmsService, CmsService>();
+            services.AddScoped<IStorageService, LocalFileStorageService>();
             
             services.AddSignalR();
             services.AddScoped<IRealTimeNotificationService, RealTimeNotificationService>();

@@ -3,7 +3,9 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
-import { apiClient, ApiException } from '@/lib/api/client';
+import { apiClient, apiUploadFile, ApiException } from '@/lib/api/client';
+import { FreelancerProfileModal } from '@/components/modals/FreelancerProfileModal';
+import { OfferComposerModal } from '@/components/modals/OfferComposerModal';
 import {
   Briefcase,
   Users,
@@ -21,7 +23,10 @@ import {
   Rocket,
   Ban,
   EyeOff,
-  CheckCircle2
+  CheckCircle2,
+  Paperclip,
+  UserCheck,
+  ExternalLink
 } from 'lucide-react';
 
 interface CandidateMatch {
@@ -29,8 +34,14 @@ interface CandidateMatch {
   projectId: string;
   freelancerId: string;
   freelancerName: string;
+  headline?: string;
+  hourlyRate?: number;
+  yearsOfExperience?: number;
+  jobSuccessScore?: number;
+  verifiedSkills?: string[];
   score: number;
   matchVersion: string;
+  reasonCodes?: string[];
   reasons: string[];
   status: number; // 0: Generated, 1: Recommended, 2: Viewed, 3: Dismissed, 4: Expired
 }
@@ -66,10 +77,19 @@ interface Project {
   preferredLanguage?: string;
   startDate?: string;
   endDate?: string;
+  fileAttachments?: string[];
   status: number; // 0: Draft, 1: Published, 2: InProgress, 3: Completed, 4: Cancelled
   createdAt: string;
   skillRequirements: ProjectSkillRequirement[];
 }
+
+const REASON_CODE_LABELS: Record<string, string> = {
+  required_skill: 'Đạt kỹ năng yêu cầu',
+  verified_skill: 'Kỹ năng đã kiểm định',
+  experience: 'Đủ năm kinh nghiệm',
+  budget_fit: 'Phù hợp ngân sách',
+  availability: 'Sẵn sàng nhận việc',
+};
 
 const PROJECT_STATUS_META: Record<number, { label: string; dot: string; badge: string }> = {
   0: { label: 'Bản nháp (Draft)', dot: 'bg-amber-500', badge: 'bg-amber-50 text-amber-800 border-amber-200' },
@@ -91,14 +111,6 @@ const formatHourlyVnd = (amount?: number | null) => {
   if (amount == null) return '0 ₫/giờ';
   return `${new Intl.NumberFormat('vi-VN').format(amount)} ₫/giờ`;
 };
-
-const escapeHtml = (value: string) =>
-  value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
 
 export default function ClientProjectsPage() {
   const router = useRouter();
@@ -124,6 +136,8 @@ export default function ClientProjectsPage() {
   const [category, setCategory] = useState('Web & Software Development');
   const [subCategory, setSubCategory] = useState('Fullstack Development');
   const [description, setDescription] = useState('');
+  const [fileAttachments, setFileAttachments] = useState<string[]>([]);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   // Step 2: Skills
   const [selectedSkillRequirements, setSelectedSkillRequirements] = useState<ProjectSkillRequirement[]>([]);
@@ -158,14 +172,9 @@ export default function ClientProjectsPage() {
   const [closingLoading, setClosingLoading] = useState(false);
   const [actionBanner, setActionBanner] = useState<string | null>(null);
 
-  // Offer Composer Modal state
-  const [offerCandidate, setOfferCandidate] = useState<CandidateMatch | null>(null);
-  const [offerBudget, setOfferBudget] = useState('');
-  const [offerStartDate, setOfferStartDate] = useState('');
-  const [offerEndDate, setOfferEndDate] = useState('');
-  const [offerNotes, setOfferNotes] = useState('');
-  const [offerSubmitting, setOfferSubmitting] = useState(false);
-  const [offerError, setOfferError] = useState<string | null>(null);
+  // Offer Composer & Candidate Profile Modal state
+  const [inspectFreelancerId, setInspectFreelancerId] = useState<string | null>(null);
+  const [offerTarget, setOfferTarget] = useState<{ id: string; name: string } | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
 
   useEffect(() => {
@@ -313,6 +322,7 @@ export default function ClientProjectsPage() {
     setCategory('Web & Software Development');
     setSubCategory('Fullstack Development');
     setDescription('');
+    setFileAttachments([]);
     setSelectedSkillRequirements([]);
     setSkillSearch('');
     setExperienceLevel(1);
@@ -337,6 +347,7 @@ export default function ClientProjectsPage() {
     setCategory(proj.category || 'Web & Software Development');
     setSubCategory(proj.subCategory || '');
     setDescription(proj.description);
+    setFileAttachments(proj.fileAttachments || []);
     setSelectedSkillRequirements(proj.skillRequirements || []);
     setSkillSearch('');
     setExperienceLevel(proj.experienceLevel ?? 1);
@@ -376,7 +387,7 @@ export default function ClientProjectsPage() {
         preferredLanguage,
         startDate: startDate ? new Date(startDate).toISOString() : null,
         endDate: endDate ? new Date(endDate).toISOString() : null,
-        fileAttachments: [] as string[],
+        fileAttachments,
       };
 
       if (editingProject) {
@@ -496,83 +507,23 @@ export default function ClientProjectsPage() {
     }
   };
 
-  const openOfferModal = (candidate: CandidateMatch) => {
-    if (!activeProject) return;
-    const defaultBudget =
-      activeProject.budgetMax ||
-      activeProject.budgetMin ||
-      (activeProject.hourlyRateMax ? activeProject.hourlyRateMax * 40 : 10000000);
-    const defaultStart = activeProject.startDate
-      ? activeProject.startDate.substring(0, 10)
-      : new Date().toISOString().substring(0, 10);
-    const defaultEnd = activeProject.endDate
-      ? activeProject.endDate.substring(0, 10)
-      : new Date(Date.now() + 30 * 86400000).toISOString().substring(0, 10);
-
-    setOfferCandidate(candidate);
-    setOfferBudget(String(defaultBudget));
-    setOfferStartDate(defaultStart);
-    setOfferEndDate(defaultEnd);
-    setOfferNotes(
-      'Chúng tôi đánh giá cao hồ sơ năng lực và các kỹ năng xác thực của bạn. Mời bạn tham gia dự án!'
-    );
-    setOfferError(null);
-  };
-
-  const handleSendOfferSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedProjectId || !offerCandidate) return;
-
-    const parsedBudget = parseFloat(offerBudget);
-    if (isNaN(parsedBudget) || parsedBudget <= 0) {
-      setOfferError('Vui lòng nhập ngân sách đề xuất hợp lệ (lớn hơn 0 VND).');
-      return;
-    }
-
-    if (!offerStartDate || !offerEndDate) {
-      setOfferError('Vui lòng chọn ngày bắt đầu và ngày hoàn thành dự kiến.');
-      return;
-    }
-
-    if (new Date(offerEndDate) <= new Date(offerStartDate)) {
-      setOfferError('Ngày hoàn thành phải sau ngày bắt đầu.');
-      return;
-    }
-
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
     try {
-      setOfferSubmitting(true);
-      setOfferError(null);
-      setInviteSuccess(null);
-
-      const safeNotes = escapeHtml(offerNotes.trim());
-      const res = await apiClient('/handshake/invitations', {
-        method: 'POST',
-        body: JSON.stringify({
-          projectId: selectedProjectId,
-          freelancerId: offerCandidate.freelancerId,
-          proposedBudget: parsedBudget,
-          proposedStartDate: new Date(offerStartDate).toISOString(),
-          proposedEndDate: new Date(offerEndDate).toISOString(),
-          contractContentHtml: `<p>${safeNotes || 'Đề nghị hợp tác triển khai dự án theo thỏa thuận.'}</p>`,
-          contractContentJson: JSON.stringify({ notes: offerNotes.trim() }),
-        }),
-      });
-
-      if (res.success) {
-        const invitedName = offerCandidate.freelancerName;
-        setOfferCandidate(null);
-        setInviteSuccess(`Đã gửi lời mời hợp tác kèm bản thảo hợp đồng tới ${invitedName}!`);
-      } else {
-        setOfferError(res.message || 'Không thể gửi lời mời hợp tác.');
+      setUploadingFile(true);
+      setWizardError(null);
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await apiUploadFile<{ url: string }>('/media/upload', formData);
+      if (res.success && res.data?.url) {
+        setFileAttachments((prev) => [...prev, res.data!.url]);
       }
     } catch (err: unknown) {
-      if (err instanceof ApiException) {
-        setOfferError(err.error.message || 'Không thể gửi lời mời hợp tác.');
-      } else {
-        setOfferError('Lỗi kết nối khi gửi lời mời hợp tác.');
-      }
+      setWizardError(err instanceof ApiException ? err.error.message : 'Tải tệp đính kèm thất bại.');
     } finally {
-      setOfferSubmitting(false);
+      setUploadingFile(false);
+      e.target.value = '';
     }
   };
 
@@ -870,6 +821,30 @@ export default function ClientProjectsPage() {
                     </div>
                   </div>
 
+                  {/* Project File Attachments */}
+                  {activeProject.fileAttachments && activeProject.fileAttachments.length > 0 && (
+                    <div className="space-y-1.5">
+                      <span className="text-2xs font-semibold text-text-muted">
+                        Tài liệu đặc tả đính kèm ({activeProject.fileAttachments.length}):
+                      </span>
+                      <div className="flex flex-wrap gap-2">
+                        {activeProject.fileAttachments.map((fileUrl, idx) => (
+                          <a
+                            key={idx}
+                            href={fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-subtle px-2.5 py-1 text-2xs font-medium text-primary hover:underline"
+                          >
+                            <Paperclip className="h-3 w-3" />
+                            Tài liệu #{idx + 1}
+                            <ExternalLink className="h-2.5 w-2.5" />
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Top 3 Matches Section */}
                   <div className="space-y-3 pt-2">
                     <div className="flex items-center justify-between">
@@ -955,7 +930,12 @@ export default function ClientProjectsPage() {
                                       </span>
                                     )}
                                   </div>
-                                  <div className="text-2xs text-text-muted">Xếp hạng #{idx + 1}</div>
+                                  <div className="text-2xs text-text-muted">
+                                    Xếp hạng #{idx + 1}
+                                    {cand.headline ? ` • ${cand.headline}` : ''}
+                                    {cand.yearsOfExperience != null ? ` • ${cand.yearsOfExperience} năm KN` : ''}
+                                    {cand.hourlyRate ? ` • ${formatHourlyVnd(cand.hourlyRate)}` : ''}
+                                  </div>
                                 </div>
                               </div>
 
@@ -967,8 +947,20 @@ export default function ClientProjectsPage() {
                               </div>
                             </div>
 
-                            {/* Reasons / Strengths */}
-                            <div className="rounded-lg bg-surface p-2.5 border border-border text-2xs space-y-1">
+                            {/* Reason Code Pills & Explanation */}
+                            <div className="rounded-lg bg-surface p-2.5 border border-border text-2xs space-y-2">
+                              {cand.reasonCodes && cand.reasonCodes.length > 0 && (
+                                <div className="flex flex-wrap gap-1">
+                                  {cand.reasonCodes.map((code) => (
+                                    <span
+                                      key={code}
+                                      className="rounded-md bg-emerald-50 border border-emerald-200 px-2 py-0.5 text-4xs font-semibold text-emerald-700"
+                                    >
+                                      {REASON_CODE_LABELS[code] || code}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
                               <div className="font-semibold text-foreground">
                                 Căn cứ giải thích khớp lệnh:
                               </div>
@@ -988,7 +980,15 @@ export default function ClientProjectsPage() {
                             </div>
 
                             {/* Actions */}
-                            <div className="flex items-center justify-end gap-2 pt-1">
+                            <div className="flex flex-wrap items-center justify-end gap-2 pt-1">
+                              <button
+                                type="button"
+                                onClick={() => setInspectFreelancerId(cand.freelancerId)}
+                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle cursor-pointer"
+                              >
+                                <UserCheck className="h-3.5 w-3.5 text-primary" />
+                                Xem hồ sơ đầy đủ
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => handleDismissMatch(cand)}
@@ -1000,12 +1000,17 @@ export default function ClientProjectsPage() {
                               </button>
                               <button
                                 type="button"
-                                onClick={() => openOfferModal(cand)}
+                                onClick={() =>
+                                  setOfferTarget({
+                                    id: cand.freelancerId,
+                                    name: cand.freelancerName,
+                                  })
+                                }
                                 disabled={activeProject.status !== 1}
                                 className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-primary-hover disabled:opacity-50 transition-colors cursor-pointer"
                               >
                                 <Send className="h-3 w-3" />
-                                Gửi lời mời & Hợp đồng
+                                Gửi lời mời &amp; Hợp đồng
                               </button>
                             </div>
                           </div>
@@ -1133,6 +1138,53 @@ export default function ClientProjectsPage() {
                       placeholder="Mô tả cụ thể bối cảnh dự án, các tính năng cần phát triển, yêu cầu bảo mật, tiến độ và tiêu chí nghiệm thu sản phẩm..."
                       className="w-full rounded-lg border border-border bg-surface p-3 text-xs leading-relaxed text-foreground focus:border-primary focus:outline-hidden"
                     />
+                  </div>
+
+                  {/* Step 1 File Attachments */}
+                  <div className="space-y-2 pt-1">
+                    <label className="block text-xs font-semibold text-foreground">
+                      Tài liệu đặc tả / Đính kèm (PDF, Word, Excel, Ảnh, ZIP • tối đa 10 MB)
+                    </label>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <label className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-subtle px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-border/40 cursor-pointer">
+                        <Paperclip className="h-3.5 w-3.5 text-primary" />
+                        <span>{uploadingFile ? 'Đang tải lên...' : 'Chọn tệp đính kèm'}</span>
+                        <input
+                          type="file"
+                          disabled={uploadingFile}
+                          onChange={handleAttachmentUpload}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
+                    {fileAttachments.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {fileAttachments.map((url, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface-subtle px-2.5 py-1 text-2xs text-foreground"
+                          >
+                            <a
+                              href={url}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-primary hover:underline"
+                            >
+                              Tài liệu #{idx + 1}
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setFileAttachments((prev) => prev.filter((_, i) => i !== idx))
+                              }
+                              className="text-text-muted hover:text-rose-600 cursor-pointer"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1482,109 +1534,28 @@ export default function ClientProjectsPage() {
         </div>
       )}
 
-      {/* Offer Composer Modal (Direct Invite) */}
-      {offerCandidate && activeProject && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-border">
-              <div>
-                <h3 className="text-sm font-bold text-foreground">
-                  Gửi Lời Mời & Bản Thảo Hợp Đồng
-                </h3>
-                <p className="text-2xs text-text-muted mt-0.5">
-                  Ứng viên: <strong className="text-foreground">{offerCandidate.freelancerName}</strong>
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOfferCandidate(null)}
-                className="rounded-lg p-1 text-text-muted hover:text-foreground cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
+      <FreelancerProfileModal
+        freelancerId={inspectFreelancerId}
+        onClose={() => setInspectFreelancerId(null)}
+        onInvite={(fl) => {
+          setInspectFreelancerId(null);
+          if (activeProject?.status === 1) {
+            setOfferTarget(fl);
+          }
+        }}
+      />
 
-            <form onSubmit={handleSendOfferSubmit} className="space-y-3.5 text-xs">
-              {offerError && (
-                <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700">
-                  {offerError}
-                </div>
-              )}
-
-              <div>
-                <label className="block font-semibold text-foreground mb-1">
-                  Ngân sách đề xuất (VND) <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="number"
-                  required
-                  value={offerBudget}
-                  onChange={(e) => setOfferBudget(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs font-mono text-foreground focus:border-primary focus:outline-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-semibold text-foreground mb-1">
-                    Ngày bắt đầu <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={offerStartDate}
-                    onChange={(e) => setOfferStartDate(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-surface p-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block font-semibold text-foreground mb-1">
-                    Ngày hoàn thành <span className="text-rose-500">*</span>
-                  </label>
-                  <input
-                    type="date"
-                    required
-                    value={offerEndDate}
-                    onChange={(e) => setOfferEndDate(e.target.value)}
-                    className="w-full rounded-lg border border-border bg-surface p-2 text-xs text-foreground focus:border-primary focus:outline-none"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-foreground mb-1">
-                  Nội dung thỏa thuận / Lời nhắn mở đầu
-                </label>
-                <textarea
-                  rows={4}
-                  value={offerNotes}
-                  onChange={(e) => setOfferNotes(e.target.value)}
-                  placeholder="Ghi chú về phạm vi công việc, kỳ vọng bàn giao và điều khoản hợp tác..."
-                  className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
-                <button
-                  type="button"
-                  onClick={() => setOfferCandidate(null)}
-                  className="rounded-lg border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle cursor-pointer"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={offerSubmitting}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary-hover disabled:opacity-50 cursor-pointer"
-                >
-                  <Send className="h-3.5 w-3.5" />
-                  {offerSubmitting ? 'Đang gửi...' : 'Xác nhận gửi lời mời'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <OfferComposerModal
+        isOpen={Boolean(offerTarget)}
+        onClose={() => setOfferTarget(null)}
+        freelancer={offerTarget}
+        fixedProject={activeProject}
+        onSuccess={(invitedName) => {
+          setInviteSuccess(
+            `Đã gửi lời mời hợp tác kèm bản thảo hợp đồng tới ${invitedName}!`
+          );
+        }}
+      />
 
       {/* Close Project Confirmation Modal */}
       {closingProject && (

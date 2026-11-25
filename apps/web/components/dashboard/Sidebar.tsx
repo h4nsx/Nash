@@ -10,7 +10,9 @@ import {
   Handshake,
   LogOut,
   X,
-  User
+  User,
+  Building2,
+  CreditCard
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -30,6 +32,8 @@ export function Sidebar({ onCloseMobile }: SidebarProps) {
         { name: 'Dự án & Tìm người làm', href: '/dashboard/client/projects', icon: FolderKanban },
         { name: 'Hợp đồng & Nghiệm thu', href: '/dashboard/work', icon: Briefcase },
         { name: 'Lời mời & Bắt tay', href: '/dashboard/matches', icon: Handshake },
+        { name: 'Thanh toán & Biên lai', href: '/dashboard/client/payments', icon: CreditCard },
+        { name: 'Hồ sơ Doanh nghiệp', href: '/dashboard/client/profile', icon: Building2 },
         { name: 'Cài đặt tài khoản', href: '/dashboard/settings', icon: Settings },
       ]
     : [

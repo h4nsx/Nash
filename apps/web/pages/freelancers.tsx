@@ -3,6 +3,8 @@ import Head from 'next/head';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api/client';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { FreelancerProfileModal } from '@/components/modals/FreelancerProfileModal';
+import { OfferComposerModal } from '@/components/modals/OfferComposerModal';
 import {
   Search,
   CheckCircle2,
@@ -10,17 +12,21 @@ import {
   UserCheck,
   Award,
   ChevronRight,
-  X
+  Star,
+  Send
 } from 'lucide-react';
 
 export interface PublicFreelancer {
   id: string;
   firstName: string;
   lastName: string;
+  headline?: string;
   hourlyRate?: number;
   yearsOfExperience?: number;
   isAvailable: boolean;
   bio: string;
+  averageRating?: number;
+  reviewsCount?: number;
   verifiedSkills: string[];
   completedProjectsCount: number;
 }
@@ -39,11 +45,13 @@ export default function FreelancersExplorePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Filters
+  // Filters & Modals
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSkill, setSelectedSkill] = useState<string>('all');
   const [experienceFilter, setExperienceFilter] = useState<string>('all'); // 'all', '1-3', '3-5', '5+'
-  const [selectedFreelancer, setSelectedFreelancer] = useState<PublicFreelancer | null>(null);
+  const [inspectFreelancerId, setInspectFreelancerId] = useState<string | null>(null);
+  const [inviteTarget, setInviteTarget] = useState<{ id: string; name: string } | null>(null);
+  const [inviteBanner, setInviteBanner] = useState<string | null>(null);
 
   const fetchFreelancersAndSkills = async () => {
     try {
@@ -251,6 +259,15 @@ export default function FreelancersExplorePage() {
             </div>
           )}
 
+          {inviteBanner && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-semibold text-emerald-800">
+              <span>{inviteBanner}</span>
+              <Link href="/dashboard/matches" className="text-primary underline">
+                Theo dõi trong Lời mời &amp; Bắt tay →
+              </Link>
+            </div>
+          )}
+
           {/* Freelancers Grid */}
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -360,18 +377,40 @@ export default function FreelancersExplorePage() {
                   </div>
 
                   {/* Card Footer Actions */}
-                  <div className="mt-5 pt-4 border-t border-border flex items-center justify-between">
-                    <span className="text-2xs text-text-muted">
-                      Đã hoàn thành <strong>{fl.completedProjectsCount}</strong> hợp đồng
-                    </span>
+                  <div className="mt-5 pt-4 border-t border-border flex items-center justify-between gap-2">
+                    <div className="text-2xs text-text-muted flex items-center gap-2">
+                      <span><strong>{fl.completedProjectsCount}</strong> HĐ</span>
+                      {fl.reviewsCount != null && fl.reviewsCount > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-amber-600 font-semibold">
+                          <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+                          {(fl.averageRating || 0).toFixed(1)}
+                        </span>
+                      )}
+                    </div>
 
-                    <button
-                      type="button"
-                      onClick={() => setSelectedFreelancer(fl)}
-                      className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
-                    >
-                      Xem hồ sơ <ChevronRight className="h-3.5 w-3.5" />
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {user?.role === 'Client' && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setInviteTarget({
+                              id: fl.id,
+                              name: `${fl.lastName} ${fl.firstName}`.trim(),
+                            })
+                          }
+                          className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-2xs font-semibold text-white hover:bg-primary-hover cursor-pointer"
+                        >
+                          <Send className="h-3 w-3" /> Mời
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setInspectFreelancerId(fl.id)}
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline cursor-pointer"
+                      >
+                        Xem hồ sơ <ChevronRight className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -381,98 +420,29 @@ export default function FreelancersExplorePage() {
         </div>
       </main>
 
-      {/* Detail Modal */}
-      {selectedFreelancer && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4 backdrop-blur-xs">
-          <div className="w-full max-w-xl rounded-2xl border border-border bg-surface p-6 sm:p-8 shadow-xl animate-in fade-in zoom-in-95 space-y-6 max-h-[90vh] overflow-y-auto">
-            
-            <div className="flex items-start justify-between pb-4 border-b border-border">
-              <div className="flex items-center gap-3.5">
-                <div className="h-12 w-12 rounded-full bg-navy-900 text-white font-bold text-base flex items-center justify-center shadow-xs">
-                  {selectedFreelancer.lastName?.[0] || 'N'}
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-foreground">
-                    {selectedFreelancer.lastName} {selectedFreelancer.firstName}
-                  </h3>
-                  <div className="flex items-center gap-2 mt-0.5 text-xs text-text-secondary">
-                    <span>{selectedFreelancer.yearsOfExperience ? `${selectedFreelancer.yearsOfExperience} năm kinh nghiệm` : 'Lập trình viên'}</span>
-                    <span>•</span>
-                    <span className="font-mono font-semibold text-foreground">{formatCurrency(selectedFreelancer.hourlyRate)}</span>
-                  </div>
-                </div>
-              </div>
+      <FreelancerProfileModal
+        freelancerId={inspectFreelancerId}
+        onClose={() => setInspectFreelancerId(null)}
+        onInvite={
+          user?.role === 'Client'
+            ? (fl) => {
+                setInspectFreelancerId(null);
+                setInviteTarget(fl);
+              }
+            : undefined
+        }
+      />
 
-              <button
-                type="button"
-                onClick={() => setSelectedFreelancer(null)}
-                className="rounded-lg p-1.5 text-text-muted hover:text-foreground hover:bg-surface-subtle cursor-pointer"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            {/* Profile Bio */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">Giới thiệu bản thân & Năng lực</h4>
-              <p className="text-xs text-text-secondary leading-relaxed whitespace-pre-line">
-                {selectedFreelancer.bio || 'Chưa cập nhật chi tiết phần mô tả tiểu sử.'}
-              </p>
-            </div>
-
-            {/* Verified Skills List */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-foreground uppercase tracking-wider">
-                Chứng chỉ kỹ năng đã xác thực ({selectedFreelancer.verifiedSkills.length})
-              </h4>
-              <div className="space-y-2">
-                {selectedFreelancer.verifiedSkills.map((skillName, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-3 rounded-lg border border-border bg-surface-subtle text-xs"
-                  >
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-primary" />
-                      <span className="font-semibold text-foreground">{skillName}</span>
-                    </div>
-                    <span className="text-2xs font-semibold px-2 py-0.5 rounded bg-success-bg text-success border border-emerald-200">
-                      Đã qua bài kiểm tra năng lực
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex items-center justify-end gap-2 pt-4 border-t border-border">
-              <button
-                type="button"
-                onClick={() => setSelectedFreelancer(null)}
-                className="rounded-lg border border-border bg-surface px-4 py-2 text-xs font-semibold text-foreground hover:bg-surface-subtle cursor-pointer"
-              >
-                Đóng
-              </button>
-
-              {user?.role === 'Client' ? (
-                <Link
-                  href="/dashboard/client/projects"
-                  className="rounded-lg bg-primary hover:bg-primary-hover px-5 py-2 text-xs font-semibold text-white shadow-xs transition-colors"
-                >
-                  Đăng dự án để mời hợp tác
-                </Link>
-              ) : (
-                <Link
-                  href="/register?role=client"
-                  className="rounded-lg bg-primary hover:bg-primary-hover px-5 py-2 text-xs font-semibold text-white shadow-xs transition-colors"
-                >
-                  Đăng ký tài khoản khách hàng để kết nối
-                </Link>
-              )}
-            </div>
-
-          </div>
-        </div>
-      )}
+      <OfferComposerModal
+        isOpen={Boolean(inviteTarget)}
+        onClose={() => setInviteTarget(null)}
+        freelancer={inviteTarget}
+        onSuccess={(invitedName, projectTitle) => {
+          setInviteBanner(
+            `Đã gửi lời mời hợp tác cho dự án "${projectTitle}" tới ${invitedName}!`
+          );
+        }}
+      />
     </div>
   );
 }

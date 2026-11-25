@@ -115,4 +115,49 @@ public class UsersController : ControllerBase
 
         return Ok(ApiResponse<PublicFreelancerDto>.Ok(freelancer));
     }
+
+    [Authorize(Roles = "Client")]
+    [HttpGet("me/client-profile")]
+    public async Task<ActionResult<ApiResponse<ClientProfileDto>>> GetMyClientProfile()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var profile = await _userService.GetClientProfileAsync(userId);
+        if (profile == null)
+            return NotFound(new ApiErrorResponse { StatusCode = 404, Code = "CLIENT_PROFILE_NOT_FOUND", Message = "Không tìm thấy hồ sơ doanh nghiệp." });
+
+        return Ok(ApiResponse<ClientProfileDto>.Ok(profile));
+    }
+
+    [Authorize(Roles = "Client")]
+    [HttpPut("me/client-profile")]
+    public async Task<ActionResult<ApiResponse<object>>> UpdateMyClientProfile([FromBody] UpdateClientProfileDto request)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId == null) return Unauthorized();
+
+        var (success, errors) = await _userService.UpdateClientProfileAsync(userId, request);
+        if (!success)
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                StatusCode = 400,
+                Code = "UPDATE_CLIENT_PROFILE_FAILED",
+                Message = errors.FirstOrDefault() ?? "Không thể cập nhật hồ sơ doanh nghiệp."
+            });
+        }
+
+        return Ok(ApiResponse<object>.Ok(new { Message = "Cập nhật hồ sơ doanh nghiệp thành công." }));
+    }
+
+    [HttpGet("clients/{id}")]
+    public async Task<ActionResult<ApiResponse<PublicClientDto>>> GetPublicClientById(Guid id)
+    {
+        var client = await _userService.GetPublicClientByIdAsync(id);
+        if (client == null)
+            return NotFound(new ApiErrorResponse { StatusCode = 404, Code = "CLIENT_NOT_FOUND", Message = "Không tìm thấy hồ sơ khách hàng." });
+
+        return Ok(ApiResponse<PublicClientDto>.Ok(client));
+    }
 }

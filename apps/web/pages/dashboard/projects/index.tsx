@@ -31,6 +31,7 @@ interface Project {
   budgetMax?: number;
   startDate?: string;
   endDate?: string;
+  fileAttachments?: string[];
   status: number;
   createdAt: string;
   skillRequirements: ProjectSkillRequirement[];
@@ -432,6 +433,25 @@ export default function ProjectsExplorePage() {
                   {selectedProject.description}
                 </p>
               </div>
+
+              {selectedProject.fileAttachments && selectedProject.fileAttachments.length > 0 && (
+                <div>
+                  <h4 className="text-xs font-bold text-foreground mb-1.5">Tài liệu đính kèm</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProject.fileAttachments.map((fileUrl, idx) => (
+                      <a
+                        key={idx}
+                        href={fileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface-subtle px-2.5 py-1 text-2xs font-medium text-primary hover:underline"
+                      >
+                        Tài liệu #{idx + 1}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <h4 className="text-xs font-bold text-foreground mb-2">Yêu cầu kỹ năng</h4>
