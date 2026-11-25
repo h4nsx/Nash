@@ -39,6 +39,8 @@ const POPULAR_VIETNAMESE_BANKS = [
 
 export default function SettingsPage() {
   const { user, logout } = useAuth();
+  const isClient = user?.role === 'Client';
+  const notifStorageKey = isClient ? 'nash_client_notification_prefs' : 'nash_freelancer_notification_prefs';
 
   const [activeTab, setActiveTab] = useState<'profile' | 'banking' | 'notifications' | 'security'>('profile');
   const [loading, setLoading] = useState(false);
@@ -72,6 +74,15 @@ export default function SettingsPage() {
 
   useEffect(() => {
     const fetchProfileSettings = async () => {
+      const storedNotifs = localStorage.getItem(notifStorageKey);
+      if (storedNotifs) {
+        try {
+          setNotifications(JSON.parse(storedNotifs));
+        } catch {
+          // Ignore malformed stored preferences
+        }
+      }
+
       // If user is not Freelancer (e.g. Client or Admin), skip calling freelancer profile API
       if (user?.role !== 'Freelancer') {
         setActiveTab('security');
@@ -102,11 +113,6 @@ export default function SettingsPage() {
           if (res.data.bankAccountNumber) setBankAccountNumber(res.data.bankAccountNumber);
           if (res.data.bankAccountName) setBankAccountName(res.data.bankAccountName);
         }
-
-        const storedNotifs = localStorage.getItem('nash_freelancer_notification_prefs');
-        if (storedNotifs) {
-          setNotifications(JSON.parse(storedNotifs));
-        }
       } catch (err) {
         console.error('Failed to load profile settings', err);
       } finally {
@@ -117,7 +123,7 @@ export default function SettingsPage() {
     if (user) {
       fetchProfileSettings();
     }
-  }, [user]);
+  }, [user, notifStorageKey]);
 
   const handleSaveProfileSettings = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -160,7 +166,7 @@ export default function SettingsPage() {
   const handleSaveNotifications = (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      localStorage.setItem('nash_freelancer_notification_prefs', JSON.stringify(notifications));
+      localStorage.setItem(notifStorageKey, JSON.stringify(notifications));
       setSuccess('Cập nhật cài đặt thông báo thành công!');
       setTimeout(() => setSuccess(null), 3000);
     } catch {
@@ -173,8 +179,8 @@ export default function SettingsPage() {
     setError(null);
     setSuccess(null);
 
-    if (newPassword.length < 6) {
-      setError('Mật khẩu mới phải có ít nhất 6 ký tự.');
+    if (newPassword.length < 8) {
+      setError('Mật khẩu mới phải có ít nhất 8 ký tự.');
       return;
     }
 
@@ -185,15 +191,32 @@ export default function SettingsPage() {
 
     try {
       setLoading(true);
-      // Mock or call password endpoint
-      await new Promise((resolve) => setTimeout(resolve, 600));
-      setSuccess('Đổi mật khẩu thành công!');
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setTimeout(() => setSuccess(null), 3000);
-    } catch (err) {
-      setError('Lỗi kết nối khi đổi mật khẩu.');
+      const res = await apiClient('/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+        }),
+      });
+
+      if (res.success) {
+        setSuccess('Đổi mật khẩu thành công!');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setTimeout(() => setSuccess(null), 3000);
+      } else {
+        setError(res.message || 'Không thể đổi mật khẩu.');
+      }
+    } catch (err: unknown) {
+      if (err instanceof ApiException) {
+        const errorDetails = err.error.errors
+          ? Object.values(err.error.errors).flat().join(' ')
+          : '';
+        setError(`${err.error.message || 'Không thể đổi mật khẩu.'} ${errorDetails}`.trim());
+      } else {
+        setError('Lỗi kết nối khi đổi mật khẩu.');
+      }
     } finally {
       setLoading(false);
     }
@@ -482,8 +505,14 @@ export default function SettingsPage() {
             <div className="space-y-3">
               <label className="flex items-center justify-between p-3.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-subtle transition-colors">
                 <div>
-                  <span className="text-xs font-bold text-foreground">Lời mời nhận dự án mới</span>
-                  <p className="text-2xs text-text-muted mt-0.5">Nhận email ngay khi khách hàng gửi bản thảo hợp đồng</p>
+                  <span className="text-xs font-bold text-foreground">
+                    {isClient ? 'Phản hồi lời mời & thương lượng hợp đồng' : 'Lời mời nhận dự án mới'}
+                  </span>
+                  <p className="text-2xs text-text-muted mt-0.5">
+                    {isClient
+                      ? 'Nhận thông báo khi ứng viên chấp nhận, từ chối hoặc đề xuất thương lượng bản thảo'
+                      : 'Nhận email ngay khi khách hàng gửi bản thảo hợp đồng'}
+                  </p>
                 </div>
                 <input
                   type="checkbox"
@@ -496,7 +525,11 @@ export default function SettingsPage() {
               <label className="flex items-center justify-between p-3.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-subtle transition-colors">
                 <div>
                   <span className="text-xs font-bold text-foreground">Cập nhật mốc nghiệm thu</span>
-                  <p className="text-2xs text-text-muted mt-0.5">Thông báo khi khách hàng phê duyệt mốc hoặc yêu cầu chỉnh sửa</p>
+                  <p className="text-2xs text-text-muted mt-0.5">
+                    {isClient
+                      ? 'Thông báo khi người làm nộp bàn giao cột mốc cần bạn kiểm tra và nghiệm thu'
+                      : 'Thông báo khi khách hàng phê duyệt mốc hoặc yêu cầu chỉnh sửa'}
+                  </p>
                 </div>
                 <input
                   type="checkbox"
@@ -508,8 +541,14 @@ export default function SettingsPage() {
 
               <label className="flex items-center justify-between p-3.5 rounded-lg border border-border bg-surface cursor-pointer hover:bg-surface-subtle transition-colors">
                 <div>
-                  <span className="text-xs font-bold text-foreground">Đánh giá từ khách hàng</span>
-                  <p className="text-2xs text-text-muted mt-0.5">Nhận thông báo khi khách hàng gửi đánh giá sau khi hoàn thành dự án</p>
+                  <span className="text-xs font-bold text-foreground">
+                    {isClient ? 'Đánh giá mới từ đối tác' : 'Đánh giá từ khách hàng'}
+                  </span>
+                  <p className="text-2xs text-text-muted mt-0.5">
+                    {isClient
+                      ? 'Nhận thông báo khi đối tác gửi đánh giá sau khi hoàn thành hợp đồng'
+                      : 'Nhận thông báo khi khách hàng gửi đánh giá sau khi hoàn thành dự án'}
+                  </p>
                 </div>
                 <input
                   type="checkbox"

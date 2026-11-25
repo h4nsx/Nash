@@ -1,13 +1,15 @@
-import { useState, useEffect, useRef, FormEvent } from 'react';
+import { useState, useEffect, useRef, useCallback, FormEvent } from 'react';
 import { useAuth } from '@/lib/auth/AuthContext';
+import { apiClient } from '@/lib/api/client';
 import { Bell, Search, Check, ExternalLink, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 
 interface NotificationItem {
   id: string;
-  type: string;
-  content: string;
+  title: string;
+  message: string;
+  type: number | string;
   isRead: boolean;
   createdAt: string;
 }
@@ -20,31 +22,37 @@ export function Topbar({ onToggleMobileMenu }: TopbarProps) {
   const router = useRouter();
   const { user } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
-  const [notifications, setNotifications] = useState<NotificationItem[]>([
-    {
-      id: 'mock-1',
-      type: 'Match',
-      content: 'Khách hàng vừa gửi lời mời hợp tác cho dự án "Xây dựng cổng thanh toán trực tuyến".',
-      isRead: false,
-      createdAt: '2026-11-10T21:00:00.000Z',
-    },
-    {
-      id: 'mock-2',
-      type: 'Milestone',
-      content: 'Mốc 1 "Thiết kế kiến trúc hệ thống" đã được khách hàng nghiệm thu thành công.',
-      isRead: false,
-      createdAt: '2026-11-10T19:00:00.000Z',
-    },
-    {
-      id: 'mock-3',
-      type: 'System',
-      content: 'Chúc mừng! Bạn đã vượt qua bài thi kiểm tra kỹ năng .NET Backend (Đạt 88/100 điểm).',
-      isRead: true,
-      createdAt: '2026-11-09T21:00:00.000Z',
-    },
-  ]);
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    try {
+      setLoadingNotifications(true);
+      const res = await apiClient<NotificationItem[]>('/notifications');
+      if (res.success && res.data) {
+        setNotifications(res.data);
+      }
+    } catch {
+      // Keep existing notifications on transient error
+    } finally {
+      setLoadingNotifications(false);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
+
+  const handleTogglePopover = () => {
+    const next = !isOpen;
+    setIsOpen(next);
+    if (next) {
+      fetchNotifications();
+    }
+  };
 
   const handleSearchSubmit = (e: FormEvent) => {
     e.preventDefault();
@@ -73,14 +81,41 @@ export function Topbar({ onToggleMobileMenu }: TopbarProps) {
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  const markAsRead = (id: string) => {
+  const markAsRead = async (id: string) => {
     setNotifications((prev) =>
       prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
     );
+    try {
+      await apiClient(`/notifications/${id}/read`, { method: 'PUT' });
+    } catch {
+      // Ignore transient network failure
+    }
   };
 
-  const markAllAsRead = () => {
+  const markAllAsRead = async () => {
+    const unreadIds = notifications.filter((n) => !n.isRead).map((n) => n.id);
     setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    try {
+      await Promise.all(
+        unreadIds.map((id) => apiClient(`/notifications/${id}/read`, { method: 'PUT' }))
+      );
+    } catch {
+      // Ignore transient network failure
+    }
+  };
+
+  const formatNotificationDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleString('vi-VN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+      });
+    } catch {
+      return dateStr;
+    }
   };
 
   return (
@@ -112,7 +147,7 @@ export function Topbar({ onToggleMobileMenu }: TopbarProps) {
         {/* Notifications Popover */}
         <div className="relative" ref={popoverRef}>
           <button
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={handleTogglePopover}
             aria-label="Thông báo"
             className="relative rounded-lg p-2 text-text-secondary hover:bg-surface-subtle hover:text-foreground transition-colors cursor-pointer"
           >
@@ -144,7 +179,11 @@ export function Topbar({ onToggleMobileMenu }: TopbarProps) {
               </div>
 
               <div className="max-h-80 overflow-y-auto divide-y divide-border">
-                {notifications.length === 0 ? (
+                {loadingNotifications && notifications.length === 0 ? (
+                  <div className="py-8 text-center text-text-muted">
+                    Đang tải thông báo...
+                  </div>
+                ) : notifications.length === 0 ? (
                   <div className="py-8 text-center text-text-muted">
                     Không có thông báo mới nào
                   </div>
@@ -157,18 +196,21 @@ export function Topbar({ onToggleMobileMenu }: TopbarProps) {
                       }`}
                     >
                       <div className="flex-1 space-y-1">
+                        {n.title && (
+                          <div className="text-xs font-bold text-foreground">{n.title}</div>
+                        )}
                         <p className={`text-xs leading-relaxed ${n.isRead ? 'text-text-secondary' : 'font-semibold text-foreground'}`}>
-                          {n.content}
+                          {n.message}
                         </p>
                         <span className="text-2xs text-text-muted block">
-                          {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Hôm nay
+                          {formatNotificationDate(n.createdAt)}
                         </span>
                       </div>
                       {!n.isRead && (
                         <button
                           onClick={() => markAsRead(n.id)}
                           title="Đánh dấu đã đọc"
-                          className="text-text-muted hover:text-primary p-1 rounded hover:bg-surface-subtle shrink-0"
+                          className="text-text-muted hover:text-primary p-1 rounded hover:bg-surface-subtle shrink-0 cursor-pointer"
                         >
                           <Check className="h-3.5 w-3.5" />
                         </button>

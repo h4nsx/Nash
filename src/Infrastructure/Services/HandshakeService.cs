@@ -80,6 +80,14 @@ public class HandshakeService : IHandshakeService
             return (false, new[] { "Không thể thương lượng lời mời đã đóng." });
         }
 
+        if (invitation.IsExpired(DateTime.UtcNow))
+        {
+            invitation.Status = InvitationStatus.Expired;
+            invitation.UpdatedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
+            return (false, new[] { "Lời mời này đã hết hạn phản hồi." });
+        }
+
         var userGuid = Guid.Parse(userId);
         if (invitation.FreelancerId != userGuid && invitation.SenderId != userGuid)
         {
@@ -124,6 +132,15 @@ public class HandshakeService : IHandshakeService
             if (invitation.Status == InvitationStatus.Accepted || invitation.Status == InvitationStatus.Declined || invitation.Status == InvitationStatus.Expired)
             {
                 return (false, new[] { "Lời mời này đã hoàn thành hoặc đã hết hạn." });
+            }
+
+            if (invitation.IsExpired(DateTime.UtcNow))
+            {
+                invitation.Status = InvitationStatus.Expired;
+                invitation.UpdatedAt = DateTime.UtcNow;
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+                return (false, new[] { "Lời mời này đã hết hạn phản hồi." });
             }
 
             var userGuid = Guid.Parse(userId);
@@ -229,7 +246,7 @@ public class HandshakeService : IHandshakeService
     public async Task<List<InvitationDto>> GetMyInvitationsAsync(string userId, string? role = null)
     {
         var query = _context.Invitations
-            .Include(i => i.Project)
+            .Include(i => i.Project).ThenInclude(p => p.Client)
             .Include(i => i.Freelancer)
             .Include(i => i.Sender)
             .Include(i => i.ContractDrafts).ThenInclude(d => d.CreatedBy)
@@ -262,7 +279,7 @@ public class HandshakeService : IHandshakeService
         var parsedUserId = Guid.Parse(userId);
 
         var invitation = await _context.Invitations
-            .Include(i => i.Project)
+            .Include(i => i.Project).ThenInclude(p => p.Client)
             .Include(i => i.Freelancer)
             .Include(i => i.Sender)
             .Include(i => i.ContractDrafts).ThenInclude(d => d.CreatedBy)
@@ -279,18 +296,20 @@ public class HandshakeService : IHandshakeService
 
     private static InvitationDto MapToDto(Invitation invitation)
     {
+        var clientName = invitation.Project?.Client != null
+            ? $"{invitation.Project.Client.FirstName} {invitation.Project.Client.LastName}".Trim()
+            : (invitation.Project?.ClientId == invitation.SenderId
+                ? $"{invitation.Sender.FirstName} {invitation.Sender.LastName}".Trim()
+                : "Client");
+
         return new InvitationDto
         {
             Id = invitation.Id,
             ProjectId = invitation.ProjectId,
-            ProjectTitle = invitation.Project.Title,
+            ProjectTitle = invitation.Project!.Title,
             ProjectDescription = invitation.Project.Description,
             ClientId = invitation.Project.ClientId,
-            // Fallback to empty string for ClientName if we didn't include the client user. We can use SenderName if Sender is Client, or we can load Project.Client.
-            // Wait, we didn't include Project.Client. Let's just use Sender.DisplayName if Sender is Client, else leave it empty.
-            // Actually, we should include Project.Client if we need it, but Sender is usually the Client for now.
-            // Let's just map what we have.
-            ClientName = invitation.Project.ClientId == invitation.SenderId ? $"{invitation.Sender.FirstName} {invitation.Sender.LastName}" : "Client",
+            ClientName = clientName,
             FreelancerId = invitation.FreelancerId,
             FreelancerName = $"{invitation.Freelancer.FirstName} {invitation.Freelancer.LastName}",
             SenderId = invitation.SenderId,

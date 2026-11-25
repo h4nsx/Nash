@@ -1,38 +1,38 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Head from 'next/head';
+import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { apiClient, ApiException } from '@/lib/api/client';
 import {
   Briefcase,
   Users,
   Send,
-  CheckCircle2,
+  Sparkles,
   Plus,
   ChevronRight,
-  Sparkles,
-  Check,
-  DollarSign,
-  Clock,
-  Layers,
-  FileText,
   AlertCircle,
-  HelpCircle,
   X,
   ArrowLeft,
-  ArrowRight
+  ArrowRight,
+  Search,
+  RefreshCw,
+  Pencil,
+  Rocket,
+  Ban,
+  EyeOff,
+  CheckCircle2
 } from 'lucide-react';
 
 interface CandidateMatch {
+  id: string;
+  projectId: string;
   freelancerId: string;
   freelancerName: string;
-  totalScore: number;
-  rank: number;
-  isTopRecommendation: boolean;
-  explanation: {
-    strengths: string[];
-    risks: string[];
-    summary: string;
-  };
+  score: number;
+  matchVersion: string;
+  reasons: string[];
+  status: number; // 0: Generated, 1: Recommended, 2: Viewed, 3: Dismissed, 4: Expired
 }
 
 interface Skill {
@@ -42,6 +42,7 @@ interface Skill {
 }
 
 interface ProjectSkillRequirement {
+  id?: string;
   skillId: string;
   skillName: string;
   isMandatory: boolean;
@@ -70,16 +71,52 @@ interface Project {
   skillRequirements: ProjectSkillRequirement[];
 }
 
+const PROJECT_STATUS_META: Record<number, { label: string; dot: string; badge: string }> = {
+  0: { label: 'Bản nháp (Draft)', dot: 'bg-amber-500', badge: 'bg-amber-50 text-amber-800 border-amber-200' },
+  1: { label: 'Đang tuyển (Published)', dot: 'bg-emerald-500', badge: 'bg-emerald-50 text-emerald-800 border-emerald-200' },
+  2: { label: 'Đang thực hiện', dot: 'bg-sky-500', badge: 'bg-sky-50 text-sky-800 border-sky-200' },
+  3: { label: 'Đã hoàn thành', dot: 'bg-primary', badge: 'bg-brand-50 text-primary border-brand-200' },
+  4: { label: 'Đã đóng / Hủy', dot: 'bg-zinc-400', badge: 'bg-surface-subtle text-text-muted border-border' },
+};
+
+const formatVnd = (amount?: number | null) => {
+  if (amount == null) return '0 ₫';
+  return new Intl.NumberFormat('vi-VN', {
+    style: 'currency',
+    currency: 'VND',
+  }).format(amount);
+};
+
+const formatHourlyVnd = (amount?: number | null) => {
+  if (amount == null) return '0 ₫/giờ';
+  return `${new Intl.NumberFormat('vi-VN').format(amount)} ₫/giờ`;
+};
+
+const escapeHtml = (value: string) =>
+  value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 export default function ClientProjectsPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [availableSkills, setAvailableSkills] = useState<Skill[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Wizard state
+  // Search & Filter state
+  const [projectSearch, setProjectSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | number>('all');
+
+  // Create / Edit Wizard state
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
   const [wizardStep, setWizardStep] = useState<1 | 2 | 3 | 4>(1);
   const [creating, setCreating] = useState(false);
+  const [wizardError, setWizardError] = useState<string | null>(null);
   const [publishImmediately, setPublishImmediately] = useState(true);
 
   // Form Fields
@@ -87,49 +124,71 @@ export default function ClientProjectsPage() {
   const [category, setCategory] = useState('Web & Software Development');
   const [subCategory, setSubCategory] = useState('Fullstack Development');
   const [description, setDescription] = useState('');
-  
+
   // Step 2: Skills
   const [selectedSkillRequirements, setSelectedSkillRequirements] = useState<ProjectSkillRequirement[]>([]);
   const [skillSearch, setSkillSearch] = useState('');
-  const [experienceLevel, setExperienceLevel] = useState<number>(1); // 1: Intermediate
+  const [experienceLevel, setExperienceLevel] = useState<number>(1);
 
   // Step 3: Scope & Dates
-  const [scope, setScope] = useState<number>(1); // 1: Medium
+  const [scope, setScope] = useState<number>(1);
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [locationPreference, setLocationPreference] = useState('Worldwide');
-  const [preferredLanguage, setPreferredLanguage] = useState('English & Vietnamese');
+  const [preferredLanguage, setPreferredLanguage] = useState('Tiếng Việt & Tiếng Anh');
 
-  // Step 4: Pricing & Budget
-  const [pricingType, setPricingType] = useState<number>(0); // 0: FixedPrice, 1: Hourly
+  // Step 4: Pricing & Budget (VND)
+  const [pricingType, setPricingType] = useState<number>(0);
   const [budgetMin, setBudgetMin] = useState('');
   const [budgetMax, setBudgetMax] = useState('');
   const [hourlyRateMin, setHourlyRateMin] = useState('');
   const [hourlyRateMax, setHourlyRateMax] = useState('');
 
-  // Selected project for matching
+  // Selected project & Smart Match state
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<CandidateMatch[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
+  const [generatingMatches, setGeneratingMatches] = useState(false);
+  const [matchError, setMatchError] = useState<string | null>(null);
+  const [dismissingId, setDismissingId] = useState<string | null>(null);
 
-  // Invite state
-  const [invitingId, setInvitingId] = useState<string | null>(null);
+  // Project lifecycle actions state
+  const [publishingId, setPublishingId] = useState<string | null>(null);
+  const [closingProject, setClosingProject] = useState<Project | null>(null);
+  const [closingLoading, setClosingLoading] = useState(false);
+  const [actionBanner, setActionBanner] = useState<string | null>(null);
+
+  // Offer Composer Modal state
+  const [offerCandidate, setOfferCandidate] = useState<CandidateMatch | null>(null);
+  const [offerBudget, setOfferBudget] = useState('');
+  const [offerStartDate, setOfferStartDate] = useState('');
+  const [offerEndDate, setOfferEndDate] = useState('');
+  const [offerNotes, setOfferNotes] = useState('');
+  const [offerSubmitting, setOfferSubmitting] = useState(false);
+  const [offerError, setOfferError] = useState<string | null>(null);
   const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
 
-  const fetchProjects = async () => {
+  useEffect(() => {
+    if (router.isReady && typeof router.query.q === 'string') {
+      setProjectSearch(router.query.q);
+    }
+  }, [router.isReady, router.query.q]);
+
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const [projRes, skillsRes] = await Promise.all([
         apiClient<Project[]>('/projects/my-projects'),
-        apiClient<Skill[]>('/skills')
+        apiClient<Skill[]>('/skills'),
       ]);
 
       if (projRes.success && projRes.data) {
         setProjects(projRes.data);
-        if (projRes.data.length > 0 && !selectedProjectId) {
-          setSelectedProjectId(projRes.data[0].id);
-        }
+        setSelectedProjectId((prev) => {
+          if (prev && projRes.data!.some((p) => p.id === prev)) return prev;
+          return projRes.data!.length > 0 ? projRes.data![0].id : null;
+        });
       }
       if (skillsRes.success && skillsRes.data) {
         setAvailableSkills(skillsRes.data);
@@ -143,37 +202,85 @@ export default function ClientProjectsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchProjects();
+  }, [fetchProjects]);
+
+  const activeProject = projects.find((p) => p.id === selectedProjectId) || null;
+
+  const fetchMatchesForProject = useCallback(async (projectId: string) => {
+    try {
+      setLoadingMatches(true);
+      setMatchError(null);
+      const res = await apiClient<CandidateMatch[]>(`/projects/${projectId}/matches`);
+      if (res.success && res.data) {
+        setCandidates(res.data.filter((m) => m.status !== 3));
+      } else {
+        setCandidates([]);
+      }
+    } catch (err: unknown) {
+      setCandidates([]);
+      if (err instanceof ApiException) {
+        setMatchError(err.error.message || 'Không thể tải danh sách Smart Match.');
+      }
+    } finally {
+      setLoadingMatches(false);
+    }
   }, []);
 
-  // Fetch matches when selectedProjectId changes
   useEffect(() => {
-    if (!selectedProjectId) {
+    if (!activeProject || activeProject.status === 0) {
       setCandidates([]);
+      setMatchError(null);
       return;
     }
+    fetchMatchesForProject(activeProject.id);
+  }, [activeProject?.id, activeProject?.status, fetchMatchesForProject]);
 
-    const fetchMatches = async () => {
-      try {
-        setLoadingMatches(true);
-        const res = await apiClient<CandidateMatch[]>(`/matches/project/${selectedProjectId}`);
-        if (res.success && res.data) {
-          setCandidates(res.data);
-        } else {
-          setCandidates([]);
-        }
-      } catch {
-        setCandidates([]);
-      } finally {
-        setLoadingMatches(false);
+  const handleGenerateMatches = async (projectId: string) => {
+    try {
+      setGeneratingMatches(true);
+      setMatchError(null);
+      const res = await apiClient<CandidateMatch[]>(`/projects/${projectId}/matches/generate`, {
+        method: 'POST',
+      });
+      if (res.success && res.data) {
+        setCandidates(res.data.filter((m) => m.status !== 3));
       }
-    };
+    } catch (err: unknown) {
+      if (err instanceof ApiException) {
+        setMatchError(err.error.message || 'Không thể chạy thuật toán Smart Match.');
+      } else {
+        setMatchError('Lỗi kết nối khi chạy Smart Match.');
+      }
+    } finally {
+      setGeneratingMatches(false);
+    }
+  };
 
-    fetchMatches();
-  }, [selectedProjectId]);
+  const handleDismissMatch = async (match: CandidateMatch) => {
+    try {
+      setDismissingId(match.id);
+      setMatchError(null);
+      const res = await apiClient(`/projects/matches/${match.id}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: 3 }), // Dismissed
+      });
+      if (res.success) {
+        setCandidates((prev) => prev.filter((c) => c.id !== match.id));
+      }
+    } catch (err: unknown) {
+      if (err instanceof ApiException) {
+        setMatchError(err.error.message || 'Không thể bỏ qua ứng viên này.');
+      } else {
+        setMatchError('Lỗi kết nối khi cập nhật trạng thái ứng viên.');
+      }
+    } finally {
+      setDismissingId(null);
+    }
+  };
 
   const handleToggleSkill = (skill: Skill) => {
     const existing = selectedSkillRequirements.find((s) => s.skillId === skill.id);
@@ -186,8 +293,8 @@ export default function ClientProjectsPage() {
           skillId: skill.id,
           skillName: skill.name,
           isMandatory: true,
-          minimumExperienceYears: 2
-        }
+          minimumExperienceYears: 2,
+        },
       ]);
     }
   };
@@ -198,11 +305,62 @@ export default function ClientProjectsPage() {
     );
   };
 
-  const handleCreateProject = async (e: React.FormEvent) => {
+  const resetForm = () => {
+    setEditingProject(null);
+    setWizardStep(1);
+    setWizardError(null);
+    setTitle('');
+    setCategory('Web & Software Development');
+    setSubCategory('Fullstack Development');
+    setDescription('');
+    setSelectedSkillRequirements([]);
+    setSkillSearch('');
+    setExperienceLevel(1);
+    setScope(1);
+    setStartDate('');
+    setEndDate('');
+    setLocationPreference('Worldwide');
+    setPreferredLanguage('Tiếng Việt & Tiếng Anh');
+    setPricingType(0);
+    setBudgetMin('');
+    setBudgetMax('');
+    setHourlyRateMin('');
+    setHourlyRateMax('');
+    setPublishImmediately(true);
+  };
+
+  const openEditWizard = (proj: Project) => {
+    setEditingProject(proj);
+    setWizardStep(1);
+    setWizardError(null);
+    setTitle(proj.title);
+    setCategory(proj.category || 'Web & Software Development');
+    setSubCategory(proj.subCategory || '');
+    setDescription(proj.description);
+    setSelectedSkillRequirements(proj.skillRequirements || []);
+    setSkillSearch('');
+    setExperienceLevel(proj.experienceLevel ?? 1);
+    setScope(proj.scope ?? 1);
+    setStartDate(proj.startDate ? proj.startDate.substring(0, 10) : '');
+    setEndDate(proj.endDate ? proj.endDate.substring(0, 10) : '');
+    setLocationPreference(proj.locationPreference || 'Worldwide');
+    setPreferredLanguage(proj.preferredLanguage || 'Tiếng Việt & Tiếng Anh');
+    setPricingType(proj.pricingType ?? 0);
+    setBudgetMin(proj.budgetMin != null ? String(proj.budgetMin) : '');
+    setBudgetMax(proj.budgetMax != null ? String(proj.budgetMax) : '');
+    setHourlyRateMin(proj.hourlyRateMin != null ? String(proj.hourlyRateMin) : '');
+    setHourlyRateMax(proj.hourlyRateMax != null ? String(proj.hourlyRateMax) : '');
+    setPublishImmediately(false);
+    setShowCreateModal(true);
+  };
+
+  const handleSaveProject = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
+    setWizardError(null);
+
     try {
-      const payload = {
+      const basePayload = {
         title,
         description,
         category,
@@ -218,82 +376,225 @@ export default function ClientProjectsPage() {
         preferredLanguage,
         startDate: startDate ? new Date(startDate).toISOString() : null,
         endDate: endDate ? new Date(endDate).toISOString() : null,
-        fileAttachments: [],
-        skillRequirements: selectedSkillRequirements.map((s) => ({
-          skillId: s.skillId,
-          isMandatory: s.isMandatory,
-          minimumExperienceYears: s.minimumExperienceYears || 1
-        }))
+        fileAttachments: [] as string[],
       };
 
-      const res = await apiClient<{ id: string }>('/projects', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
+      if (editingProject) {
+        const projId = editingProject.id;
+        await apiClient(`/projects/${projId}`, {
+          method: 'PUT',
+          body: JSON.stringify(basePayload),
+        });
 
-      if (res.success && res.data) {
-        const newProjId = res.data.id;
-        if (publishImmediately) {
-          await apiClient(`/projects/${newProjId}/publish`, { method: 'POST' });
+        const oldReqs = editingProject.skillRequirements || [];
+        const removed = oldReqs.filter(
+          (o) => !selectedSkillRequirements.some((n) => n.skillId === o.skillId)
+        );
+        for (const rem of removed) {
+          await apiClient(`/projects/${projId}/skills/${rem.skillId}`, {
+            method: 'DELETE',
+          });
         }
+
+        for (const req of selectedSkillRequirements) {
+          const prev = oldReqs.find((o) => o.skillId === req.skillId);
+          if (
+            !prev ||
+            prev.isMandatory !== req.isMandatory ||
+            prev.minimumExperienceYears !== req.minimumExperienceYears
+          ) {
+            await apiClient(`/projects/${projId}/skills`, {
+              method: 'POST',
+              body: JSON.stringify({
+                skillId: req.skillId,
+                isMandatory: req.isMandatory,
+                minimumExperienceYears: req.minimumExperienceYears || 1,
+              }),
+            });
+          }
+        }
+
+        if (publishImmediately) {
+          await apiClient(`/projects/${projId}/publish`, { method: 'POST' });
+          await handleGenerateMatches(projId);
+          setActionBanner('Đã cập nhật, xuất bản dự án và chạy Smart Match Top 3.');
+        } else {
+          setActionBanner('Đã cập nhật bản nháp dự án thành công.');
+        }
+
         setShowCreateModal(false);
         resetForm();
         await fetchProjects();
-        setSelectedProjectId(newProjId);
+        setSelectedProjectId(projId);
+      } else {
+        const res = await apiClient<{ id: string }>('/projects', {
+          method: 'POST',
+          body: JSON.stringify({
+            ...basePayload,
+            skillRequirements: selectedSkillRequirements.map((s) => ({
+              skillId: s.skillId,
+              isMandatory: s.isMandatory,
+              minimumExperienceYears: s.minimumExperienceYears || 1,
+            })),
+          }),
+        });
+
+        if (res.success && res.data) {
+          const newProjId = res.data.id;
+          if (publishImmediately) {
+            await apiClient(`/projects/${newProjId}/publish`, { method: 'POST' });
+            await handleGenerateMatches(newProjId);
+            setActionBanner('Đã đăng dự án và tìm Top 3 ứng viên Smart Match!');
+          } else {
+            setActionBanner('Đã lưu dự án dưới dạng Bản nháp.');
+          }
+          setShowCreateModal(false);
+          resetForm();
+          await fetchProjects();
+          setSelectedProjectId(newProjId);
+        }
       }
     } catch (err: unknown) {
-      alert(err instanceof ApiException ? err.error.message : 'Tạo dự án thất bại.');
+      setWizardError(
+        err instanceof ApiException ? err.error.message : 'Lưu dự án thất bại. Vui lòng thử lại.'
+      );
     } finally {
       setCreating(false);
     }
   };
 
-  const resetForm = () => {
-    setWizardStep(1);
-    setTitle('');
-    setDescription('');
-    setSelectedSkillRequirements([]);
-    setBudgetMin('');
-    setBudgetMax('');
-    setHourlyRateMin('');
-    setHourlyRateMax('');
-    setStartDate('');
-    setEndDate('');
+  const handlePublishDraft = async (project: Project) => {
+    try {
+      setPublishingId(project.id);
+      setError(null);
+      setActionBanner(null);
+      await apiClient(`/projects/${project.id}/publish`, { method: 'POST' });
+      await fetchProjects();
+      await handleGenerateMatches(project.id);
+      setActionBanner(`Đã xuất bản dự án "${project.title}" và chạy Smart Match Top 3.`);
+    } catch (err: unknown) {
+      setError(err instanceof ApiException ? err.error.message : 'Không thể xuất bản dự án.');
+    } finally {
+      setPublishingId(null);
+    }
   };
 
-  const handleSendInvite = async (candidate: CandidateMatch) => {
-    if (!selectedProjectId) return;
-    setInvitingId(candidate.freelancerId);
-    setInviteSuccess(null);
+  const handleCloseProject = async () => {
+    if (!closingProject) return;
     try {
-      const activeProj = projects.find((p) => p.id === selectedProjectId);
-      const budgetOffer = activeProj?.budgetMax || activeProj?.budgetMin || 5000000;
+      setClosingLoading(true);
+      setError(null);
+      await apiClient(`/projects/${closingProject.id}/close`, { method: 'POST' });
+      setActionBanner(`Đã đóng dự án "${closingProject.title}".`);
+      setClosingProject(null);
+      await fetchProjects();
+    } catch (err: unknown) {
+      setError(err instanceof ApiException ? err.error.message : 'Không thể đóng dự án.');
+      setClosingProject(null);
+    } finally {
+      setClosingLoading(false);
+    }
+  };
 
+  const openOfferModal = (candidate: CandidateMatch) => {
+    if (!activeProject) return;
+    const defaultBudget =
+      activeProject.budgetMax ||
+      activeProject.budgetMin ||
+      (activeProject.hourlyRateMax ? activeProject.hourlyRateMax * 40 : 10000000);
+    const defaultStart = activeProject.startDate
+      ? activeProject.startDate.substring(0, 10)
+      : new Date().toISOString().substring(0, 10);
+    const defaultEnd = activeProject.endDate
+      ? activeProject.endDate.substring(0, 10)
+      : new Date(Date.now() + 30 * 86400000).toISOString().substring(0, 10);
+
+    setOfferCandidate(candidate);
+    setOfferBudget(String(defaultBudget));
+    setOfferStartDate(defaultStart);
+    setOfferEndDate(defaultEnd);
+    setOfferNotes(
+      'Chúng tôi đánh giá cao hồ sơ năng lực và các kỹ năng xác thực của bạn. Mời bạn tham gia dự án!'
+    );
+    setOfferError(null);
+  };
+
+  const handleSendOfferSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProjectId || !offerCandidate) return;
+
+    const parsedBudget = parseFloat(offerBudget);
+    if (isNaN(parsedBudget) || parsedBudget <= 0) {
+      setOfferError('Vui lòng nhập ngân sách đề xuất hợp lệ (lớn hơn 0 VND).');
+      return;
+    }
+
+    if (!offerStartDate || !offerEndDate) {
+      setOfferError('Vui lòng chọn ngày bắt đầu và ngày hoàn thành dự kiến.');
+      return;
+    }
+
+    if (new Date(offerEndDate) <= new Date(offerStartDate)) {
+      setOfferError('Ngày hoàn thành phải sau ngày bắt đầu.');
+      return;
+    }
+
+    try {
+      setOfferSubmitting(true);
+      setOfferError(null);
+      setInviteSuccess(null);
+
+      const safeNotes = escapeHtml(offerNotes.trim());
       const res = await apiClient('/handshake/invitations', {
         method: 'POST',
         body: JSON.stringify({
           projectId: selectedProjectId,
-          freelancerId: candidate.freelancerId,
-          proposedBudget: budgetOffer,
-          proposedStartDate: new Date().toISOString(),
-          proposedEndDate: new Date(Date.now() + 30 * 86400000).toISOString(),
-          notes: 'Chúng tôi đánh giá cao hồ sơ năng lực và các kỹ năng xác thực của bạn. Mời bạn tham gia dự án!'
-        })
+          freelancerId: offerCandidate.freelancerId,
+          proposedBudget: parsedBudget,
+          proposedStartDate: new Date(offerStartDate).toISOString(),
+          proposedEndDate: new Date(offerEndDate).toISOString(),
+          contractContentHtml: `<p>${safeNotes || 'Đề nghị hợp tác triển khai dự án theo thỏa thuận.'}</p>`,
+          contractContentJson: JSON.stringify({ notes: offerNotes.trim() }),
+        }),
       });
 
       if (res.success) {
-        setInviteSuccess(`Đã gửi lời mời cộng tác thành công tới ${candidate.freelancerName}!`);
+        const invitedName = offerCandidate.freelancerName;
+        setOfferCandidate(null);
+        setInviteSuccess(`Đã gửi lời mời hợp tác kèm bản thảo hợp đồng tới ${invitedName}!`);
       } else {
-        setInviteSuccess(`Đã gửi lời mời tới ${candidate.freelancerName}!`);
+        setOfferError(res.message || 'Không thể gửi lời mời hợp tác.');
       }
-    } catch {
-      setInviteSuccess(`Đã gửi lời mời cộng tác tới ${candidate.freelancerName}!`);
+    } catch (err: unknown) {
+      if (err instanceof ApiException) {
+        setOfferError(err.error.message || 'Không thể gửi lời mời hợp tác.');
+      } else {
+        setOfferError('Lỗi kết nối khi gửi lời mời hợp tác.');
+      }
     } finally {
-      setInvitingId(null);
+      setOfferSubmitting(false);
     }
   };
 
-  const activeProject = projects.find((p) => p.id === selectedProjectId);
+  const filteredProjects = projects.filter((proj) => {
+    const query = projectSearch.trim().toLowerCase();
+    const matchesQuery =
+      !query ||
+      proj.title.toLowerCase().includes(query) ||
+      proj.description.toLowerCase().includes(query) ||
+      (proj.category && proj.category.toLowerCase().includes(query));
+
+    if (!matchesQuery) return false;
+    if (statusFilter !== 'all' && proj.status !== statusFilter) return false;
+    return true;
+  });
+
+  const renderProjectBudget = (proj: Project) => {
+    if (proj.pricingType === 1) {
+      return `${formatHourlyVnd(proj.hourlyRateMin)} – ${formatHourlyVnd(proj.hourlyRateMax)}`;
+    }
+    return `${formatVnd(proj.budgetMin)} – ${formatVnd(proj.budgetMax)}`;
+  };
 
   return (
     <DashboardLayout>
@@ -309,7 +610,7 @@ export default function ClientProjectsPage() {
               Quản Lý Dự Án & Smart Match Top 3
             </h1>
             <p className="text-xs text-text-muted mt-1">
-              Đăng tin tuyển dụng chuẩn hóa, lọc ứng viên chính xác tuyệt đối bằng thuật toán Explainable Matching.
+              Đăng tin tuyển dụng chuẩn hóa, lọc ứng viên chính xác bằng thuật toán Explainable Matching.
             </p>
           </div>
           <button
@@ -331,32 +632,89 @@ export default function ClientProjectsPage() {
           </div>
         )}
 
+        {actionBanner && (
+          <div className="flex items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3.5 text-xs font-semibold text-emerald-800">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+              <span>{actionBanner}</span>
+            </div>
+            <button
+              onClick={() => setActionBanner(null)}
+              className="text-emerald-700 hover:text-emerald-900 cursor-pointer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         {/* Main 2-Column Interface */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Left Column: Project List (5 Cols) */}
           <div className="lg:col-span-5 space-y-3">
-            <div className="flex items-center justify-between px-1">
-              <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted">
-                Dự án của bạn ({projects.length})
-              </h2>
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between px-1">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-text-muted">
+                  Dự án của bạn ({filteredProjects.length}/{projects.length})
+                </h2>
+              </div>
+
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-text-muted" />
+                <input
+                  type="text"
+                  value={projectSearch}
+                  onChange={(e) => setProjectSearch(e.target.value)}
+                  placeholder="Tìm kiếm theo tiêu đề, mô tả dự án..."
+                  className="w-full rounded-lg border border-border bg-surface py-2 pl-9 pr-3 text-xs text-foreground placeholder:text-text-muted focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { key: 'all' as const, label: 'Tất cả' },
+                  { key: 0, label: 'Nháp' },
+                  { key: 1, label: 'Đang tuyển' },
+                  { key: 2, label: 'Đang chạy' },
+                  { key: 3, label: 'Hoàn thành' },
+                  { key: 4, label: 'Đã đóng' },
+                ].map((tab) => (
+                  <button
+                    key={String(tab.key)}
+                    type="button"
+                    onClick={() => setStatusFilter(tab.key)}
+                    className={`rounded-lg px-2.5 py-1 text-3xs font-semibold border transition-colors cursor-pointer ${
+                      statusFilter === tab.key
+                        ? 'bg-primary text-white border-primary'
+                        : 'bg-surface text-text-secondary border-border hover:bg-surface-subtle'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {loading ? (
               <div className="flex h-48 items-center justify-center rounded-xl border border-border bg-surface text-xs text-text-muted">
                 Đang tải danh sách dự án...
               </div>
-            ) : projects.length === 0 ? (
+            ) : filteredProjects.length === 0 ? (
               <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-surface p-8 text-center">
                 <Briefcase className="h-10 w-10 text-text-muted mb-2 stroke-1" />
-                <p className="text-xs font-bold text-foreground">Chưa có dự án nào</p>
+                <p className="text-xs font-bold text-foreground">
+                  {projects.length === 0 ? 'Chưa có dự án nào' : 'Không tìm thấy dự án khớp bộ lọc'}
+                </p>
                 <p className="text-2xs text-text-muted mt-1 max-w-xs">
-                  Bấm &quot;Đăng dự án tuyển dụng mới&quot; để tìm các Freelancer sở hữu huy hiệu năng lực chuẩn hóa.
+                  {projects.length === 0
+                    ? 'Bấm "Đăng dự án tuyển dụng mới" để tìm các Freelancer sở hữu huy hiệu năng lực chuẩn hóa.'
+                    : 'Thử thay đổi từ khóa tìm kiếm hoặc bộ lọc trạng thái.'}
                 </p>
               </div>
             ) : (
               <div className="space-y-2.5">
-                {projects.map((proj) => {
+                {filteredProjects.map((proj) => {
                   const isSelected = proj.id === selectedProjectId;
+                  const statusMeta = PROJECT_STATUS_META[proj.status] || PROJECT_STATUS_META[0];
                   return (
                     <div
                       key={proj.id}
@@ -370,11 +728,7 @@ export default function ClientProjectsPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span
-                              className={`h-2 w-2 rounded-full ${
-                                proj.status === 1 ? 'bg-emerald-500' : 'bg-amber-500'
-                              }`}
-                            />
+                            <span className={`h-2 w-2 rounded-full shrink-0 ${statusMeta.dot}`} />
                             <h3 className="text-xs font-bold text-foreground truncate group-hover:text-primary transition-colors">
                               {proj.title}
                             </h3>
@@ -383,19 +737,23 @@ export default function ClientProjectsPage() {
                             {proj.description}
                           </p>
                         </div>
-                        <ChevronRight className={`h-4 w-4 shrink-0 transition-transform ${isSelected ? 'text-primary translate-x-1' : 'text-text-muted'}`} />
+                        <ChevronRight
+                          className={`h-4 w-4 shrink-0 transition-transform ${
+                            isSelected ? 'text-primary translate-x-1' : 'text-text-muted'
+                          }`}
+                        />
                       </div>
 
                       <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-border/50 text-3xs text-text-muted">
-                        <span className="font-semibold text-foreground">
-                          {proj.pricingType === 1
-                            ? `$${proj.hourlyRateMin || 0} - $${proj.hourlyRateMax || 0}/h`
-                            : `$${(proj.budgetMin || 0).toLocaleString()} - $${(proj.budgetMax || 0).toLocaleString()}`}
+                        <span className="font-semibold text-foreground font-mono">
+                          {renderProjectBudget(proj)}
                         </span>
                         <span>•</span>
                         <span>{proj.skillRequirements?.length || 0} kỹ năng yêu cầu</span>
-                        <span className="ml-auto rounded-full bg-surface px-2 py-0.5 font-bold border border-border">
-                          {proj.status === 1 ? 'Đang tuyển (Published)' : 'Bản nháp (Draft)'}
+                        <span
+                          className={`ml-auto rounded-full px-2 py-0.5 font-bold border ${statusMeta.badge}`}
+                        >
+                          {statusMeta.label}
                         </span>
                       </div>
                     </div>
@@ -417,23 +775,82 @@ export default function ClientProjectsPage() {
                       </div>
                       <h2 className="text-base font-bold text-foreground">{activeProject.title}</h2>
                       <p className="text-2xs text-text-muted">
-                        {activeProject.category} • {activeProject.experienceLevel === 2 ? 'Yêu cầu: Chuyên gia (Expert)' : 'Yêu cầu: Trung cấp (Intermediate)'}
+                        {activeProject.category || 'Công nghệ thông tin'} •{' '}
+                        {activeProject.experienceLevel === 2
+                          ? 'Yêu cầu: Chuyên gia (Expert)'
+                          : activeProject.experienceLevel === 0
+                          ? 'Yêu cầu: Cơ bản (Entry)'
+                          : 'Yêu cầu: Trung cấp (Intermediate)'}
                       </p>
                     </div>
 
-                    <div className="text-right">
+                    <div className="text-left sm:text-right">
                       <div className="text-2xs text-text-muted">Ngân sách dự kiến</div>
-                      <div className="text-sm font-extrabold text-foreground">
+                      <div className="text-sm font-extrabold text-foreground font-mono">
                         {activeProject.pricingType === 1
-                          ? `$${activeProject.hourlyRateMin || 0} - $${activeProject.hourlyRateMax || 0}/h`
-                          : `$${(activeProject.budgetMax || 0).toLocaleString()}`}
+                          ? `${formatHourlyVnd(activeProject.hourlyRateMin)} – ${formatHourlyVnd(activeProject.hourlyRateMax)}`
+                          : formatVnd(activeProject.budgetMax ?? activeProject.budgetMin ?? 0)}
                       </div>
                     </div>
                   </div>
 
+                  {/* Project Lifecycle Action Bar */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {activeProject.status === 0 && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => openEditWizard(activeProject)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-surface-subtle cursor-pointer"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Chỉnh sửa bản nháp
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handlePublishDraft(activeProject)}
+                          disabled={publishingId === activeProject.id}
+                          className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 disabled:opacity-50 cursor-pointer"
+                        >
+                          <Rocket className="h-3.5 w-3.5" />
+                          {publishingId === activeProject.id
+                            ? 'Đang xuất bản...'
+                            : 'Xuất bản & Tìm Top 3'}
+                        </button>
+                      </>
+                    )}
+
+                    {activeProject.status === 1 && (
+                      <button
+                        type="button"
+                        onClick={() => handleGenerateMatches(activeProject.id)}
+                        disabled={generatingMatches}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-primary/40 bg-primary-soft/30 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary-soft/60 disabled:opacity-50 cursor-pointer"
+                      >
+                        <RefreshCw
+                          className={`h-3.5 w-3.5 ${generatingMatches ? 'animate-spin' : ''}`}
+                        />
+                        {generatingMatches ? 'Đang tính toán...' : 'Làm mới Smart Match'}
+                      </button>
+                    )}
+
+                    {(activeProject.status === 0 || activeProject.status === 1) && (
+                      <button
+                        type="button"
+                        onClick={() => setClosingProject(activeProject)}
+                        className="ml-auto inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700 hover:bg-rose-100 cursor-pointer"
+                      >
+                        <Ban className="h-3.5 w-3.5" />
+                        Đóng dự án
+                      </button>
+                    )}
+                  </div>
+
                   {/* Skills tags */}
                   <div className="space-y-1.5">
-                    <span className="text-2xs font-semibold text-text-muted">Kỹ năng bắt buộc & ưu tiên:</span>
+                    <span className="text-2xs font-semibold text-text-muted">
+                      Kỹ năng bắt buộc & ưu tiên:
+                    </span>
                     <div className="flex flex-wrap gap-1.5">
                       {activeProject.skillRequirements.map((req) => (
                         <span
@@ -445,7 +862,9 @@ export default function ClientProjectsPage() {
                           }`}
                         >
                           {req.skillName}
-                          <span className="opacity-60 text-4xs">({req.isMandatory ? 'Bắt buộc' : 'Ưu tiên'})</span>
+                          <span className="opacity-60 text-4xs">
+                            ({req.isMandatory ? 'Bắt buộc' : 'Ưu tiên'})
+                          </span>
                         </span>
                       ))}
                     </div>
@@ -461,71 +880,132 @@ export default function ClientProjectsPage() {
                     </div>
 
                     {inviteSuccess && (
-                      <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs font-semibold text-emerald-800">
-                        {inviteSuccess}
+                      <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs font-semibold text-emerald-800">
+                        <span>{inviteSuccess}</span>
+                        <Link
+                          href="/dashboard/matches"
+                          className="text-primary underline hover:text-primary-hover"
+                        >
+                          Xem trong Lời mời & Bắt tay →
+                        </Link>
                       </div>
                     )}
 
-                    {loadingMatches ? (
+                    {matchError && (
+                      <div className="rounded-lg bg-rose-50 border border-rose-200 p-3 text-xs font-medium text-rose-700">
+                        {matchError}
+                      </div>
+                    )}
+
+                    {loadingMatches || generatingMatches ? (
                       <div className="flex h-36 items-center justify-center text-xs text-text-muted">
                         Đang phân tích và tính toán điểm khớp lệnh...
                       </div>
                     ) : candidates.length === 0 ? (
-                      <div className="rounded-xl border border-dashed border-border bg-surface-subtle/50 p-6 text-center text-xs text-text-muted">
-                        {activeProject.status === 0
-                          ? 'Dự án đang ở trạng thái Nháp. Hãy xuất bản dự án để hệ thống tự động tìm Top 3 ứng viên.'
-                          : 'Hiện chưa có ứng viên nào đáp ứng đầy đủ 100% các điều kiện kỹ năng bắt buộc.'}
+                      <div className="rounded-xl border border-dashed border-border bg-surface-subtle/50 p-6 text-center text-xs text-text-muted space-y-2">
+                        {activeProject.status === 0 ? (
+                          <p>
+                            Dự án đang ở trạng thái Nháp. Hãy bấm &quot;Xuất bản &amp; Tìm Top 3&quot; để hệ thống tự động tìm ứng viên.
+                          </p>
+                        ) : activeProject.status === 4 ? (
+                          <p>Dự án này đã đóng.</p>
+                        ) : (
+                          <>
+                            <p>
+                              Hiện chưa có ứng viên nào đáp ứng đầy đủ 100% các điều kiện kỹ năng bắt buộc hoặc chưa có dữ liệu Smart Match.
+                            </p>
+                            {activeProject.status === 1 && (
+                              <button
+                                type="button"
+                                onClick={() => handleGenerateMatches(activeProject.id)}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white hover:bg-primary-hover cursor-pointer"
+                              >
+                                <Sparkles className="h-3.5 w-3.5" />
+                                Chạy Smart Match ngay
+                              </button>
+                            )}
+                          </>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        {candidates.map((cand) => (
+                        {candidates.map((cand, idx) => (
                           <div
-                            key={cand.freelancerId}
+                            key={cand.id || cand.freelancerId}
                             className="rounded-xl border border-border bg-surface-subtle/40 p-4 transition-all hover:border-primary/50 space-y-3"
                           >
                             <div className="flex items-start justify-between">
                               <div className="flex items-center gap-3">
                                 <div className="h-10 w-10 rounded-full bg-primary-soft text-primary font-bold flex items-center justify-center text-sm">
-                                  {cand.freelancerName[0]}
+                                  {cand.freelancerName?.[0] || 'F'}
                                 </div>
                                 <div>
-                                  <div className="flex items-center gap-2">
-                                    <h4 className="text-xs font-bold text-foreground">{cand.freelancerName}</h4>
-                                    {cand.isTopRecommendation && (
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <h4 className="text-xs font-bold text-foreground">
+                                      {cand.freelancerName}
+                                    </h4>
+                                    {idx === 0 && (
                                       <span className="rounded-full bg-amber-100 text-amber-800 px-2 py-0.5 text-4xs font-extrabold">
                                         TOP 1 MATCH
                                       </span>
                                     )}
+                                    {cand.matchVersion && (
+                                      <span className="rounded bg-surface px-1.5 py-0.5 text-4xs font-mono text-text-muted border border-border">
+                                        {cand.matchVersion}
+                                      </span>
+                                    )}
                                   </div>
-                                  <div className="text-2xs text-text-muted">Xếp hạng #{cand.rank}</div>
+                                  <div className="text-2xs text-text-muted">Xếp hạng #{idx + 1}</div>
                                 </div>
                               </div>
 
                               <div className="text-right">
-                                <span className="text-base font-black text-primary">{Math.round(cand.totalScore)}%</span>
+                                <span className="text-base font-black text-primary">
+                                  {Math.round(cand.score)}%
+                                </span>
                                 <div className="text-3xs text-text-muted">Điểm tương thích</div>
                               </div>
                             </div>
 
                             {/* Reasons / Strengths */}
                             <div className="rounded-lg bg-surface p-2.5 border border-border text-2xs space-y-1">
-                              <div className="font-semibold text-foreground">Căn cứ giải thích khớp lệnh:</div>
-                              <ul className="list-disc pl-4 space-y-0.5 text-text-secondary text-3xs">
-                                {cand.explanation?.strengths?.map((s, idx) => (
-                                  <li key={idx} className="text-emerald-700 font-medium">{s}</li>
-                                ))}
-                              </ul>
+                              <div className="font-semibold text-foreground">
+                                Căn cứ giải thích khớp lệnh:
+                              </div>
+                              {cand.reasons && cand.reasons.length > 0 ? (
+                                <ul className="list-disc pl-4 space-y-0.5 text-text-secondary text-3xs">
+                                  {cand.reasons.map((reason, rIdx) => (
+                                    <li key={rIdx} className="text-emerald-700 font-medium">
+                                      {reason}
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <p className="text-3xs text-text-muted">
+                                  Đáp ứng các yêu cầu kỹ năng bắt buộc và khả năng sẵn sàng nhận việc.
+                                </p>
+                              )}
                             </div>
 
-                            {/* Invite button */}
-                            <div className="flex justify-end pt-1">
+                            {/* Actions */}
+                            <div className="flex items-center justify-end gap-2 pt-1">
                               <button
-                                onClick={() => handleSendInvite(cand)}
-                                disabled={invitingId === cand.freelancerId}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-primary-hover transition-colors cursor-pointer"
+                                type="button"
+                                onClick={() => handleDismissMatch(cand)}
+                                disabled={dismissingId === cand.id}
+                                className="inline-flex items-center gap-1 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-text-secondary hover:bg-surface-subtle hover:text-foreground disabled:opacity-50 cursor-pointer"
+                              >
+                                <EyeOff className="h-3 w-3" />
+                                {dismissingId === cand.id ? 'Đang ẩn...' : 'Bỏ qua'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => openOfferModal(cand)}
+                                disabled={activeProject.status !== 1}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-white shadow-xs hover:bg-primary-hover disabled:opacity-50 transition-colors cursor-pointer"
                               >
                                 <Send className="h-3 w-3" />
-                                {invitingId === cand.freelancerId ? 'Đang gửi lời mời...' : 'Gửi lời mời & Hợp đồng'}
+                                Gửi lời mời & Hợp đồng
                               </button>
                             </div>
                           </div>
@@ -544,7 +1024,7 @@ export default function ClientProjectsPage() {
         </div>
       </div>
 
-      {/* 4-Step Project Creation Wizard Modal */}
+      {/* 4-Step Project Creation / Edit Wizard Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4">
           <div className="flex max-h-[92vh] w-full max-w-2xl flex-col rounded-2xl border border-border bg-surface shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
@@ -552,22 +1032,30 @@ export default function ClientProjectsPage() {
             <div className="border-b border-border bg-surface-subtle p-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-sm font-bold text-foreground">Đăng Tin Tuyển Dụng & Dự Án Mới</h3>
-                  <p className="text-2xs text-text-muted">Bước {wizardStep}/4: {
-                    wizardStep === 1 ? 'Tiêu đề & Chuyên ngành' :
-                    wizardStep === 2 ? 'Kỹ năng & Trình độ yêu cầu' :
-                    wizardStep === 3 ? 'Quy mô & Mốc thời gian' : 'Ngân sách & Hình thức thanh toán'
-                  }</p>
+                  <h3 className="text-sm font-bold text-foreground">
+                    {editingProject
+                      ? 'Chỉnh Sửa Dự Án Bản Nháp'
+                      : 'Đăng Tin Tuyển Dụng & Dự Án Mới'}
+                  </h3>
+                  <p className="text-2xs text-text-muted">
+                    Bước {wizardStep}/4:{' '}
+                    {wizardStep === 1
+                      ? 'Tiêu đề & Chuyên ngành'
+                      : wizardStep === 2
+                      ? 'Kỹ năng & Trình độ yêu cầu'
+                      : wizardStep === 3
+                      ? 'Quy mô & Mốc thời gian'
+                      : 'Ngân sách & Hình thức thanh toán (VND)'}
+                  </p>
                 </div>
                 <button
                   onClick={() => setShowCreateModal(false)}
-                  className="rounded-lg p-1.5 text-text-muted hover:text-foreground"
+                  className="rounded-lg p-1.5 text-text-muted hover:text-foreground cursor-pointer"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              {/* Step indicator bar */}
               <div className="mt-4 grid grid-cols-4 gap-2">
                 {[1, 2, 3, 4].map((step) => (
                   <div
@@ -581,7 +1069,13 @@ export default function ClientProjectsPage() {
             </div>
 
             {/* Modal Body: Wizard Steps */}
-            <form onSubmit={handleCreateProject} className="flex-1 overflow-y-auto p-6 space-y-4">
+            <form onSubmit={handleSaveProject} className="flex-1 overflow-y-auto p-6 space-y-4">
+              {wizardError && (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700">
+                  {wizardError}
+                </div>
+              )}
+
               {/* STEP 1: Title & Category */}
               {wizardStep === 1 && (
                 <div className="space-y-4">
@@ -662,7 +1156,9 @@ export default function ClientProjectsPage() {
                       {availableSkills
                         .filter((s) => s.name.toLowerCase().includes(skillSearch.toLowerCase()))
                         .map((skill) => {
-                          const isSelected = selectedSkillRequirements.some((s) => s.skillId === skill.id);
+                          const isSelected = selectedSkillRequirements.some(
+                            (s) => s.skillId === skill.id
+                          );
                           return (
                             <button
                               type="button"
@@ -681,10 +1177,11 @@ export default function ClientProjectsPage() {
                     </div>
                   </div>
 
-                  {/* Selected skills configuration list */}
                   {selectedSkillRequirements.length > 0 && (
                     <div className="space-y-2">
-                      <div className="text-2xs font-bold text-foreground">Cấu hình tiêu chí cho từng kỹ năng đã chọn:</div>
+                      <div className="text-2xs font-bold text-foreground">
+                        Cấu hình tiêu chí cho từng kỹ năng đã chọn:
+                      </div>
                       <div className="space-y-1.5 max-h-44 overflow-y-auto">
                         {selectedSkillRequirements.map((req) => (
                           <div
@@ -692,19 +1189,23 @@ export default function ClientProjectsPage() {
                             className="flex items-center justify-between p-2 rounded-lg border border-border bg-surface text-xs"
                           >
                             <span className="font-bold text-foreground">{req.skillName}</span>
-                            <div className="flex items-center gap-3">
-                              <label className="flex items-center gap-1.5 text-2xs cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  checked={req.isMandatory}
-                                  onChange={(e) => handleUpdateSkillMandatory(req.skillId, e.target.checked)}
-                                  className="rounded border-border text-primary"
-                                />
-                                <span className={req.isMandatory ? 'font-bold text-rose-600' : 'text-text-muted'}>
-                                  {req.isMandatory ? 'Bắt buộc' : 'Ưu tiên'}
-                                </span>
-                              </label>
-                            </div>
+                            <label className="flex items-center gap-1.5 text-2xs cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={req.isMandatory}
+                                onChange={(e) =>
+                                  handleUpdateSkillMandatory(req.skillId, e.target.checked)
+                                }
+                                className="rounded border-border text-primary"
+                              />
+                              <span
+                                className={
+                                  req.isMandatory ? 'font-bold text-rose-600' : 'text-text-muted'
+                                }
+                              >
+                                {req.isMandatory ? 'Bắt buộc' : 'Ưu tiên'}
+                              </span>
+                            </label>
                           </div>
                         ))}
                       </div>
@@ -712,12 +1213,14 @@ export default function ClientProjectsPage() {
                   )}
 
                   <div className="space-y-1.5 pt-2 border-t border-border/60">
-                    <label className="text-xs font-semibold text-foreground">Cấp độ kinh nghiệm mong muốn</label>
+                    <label className="text-xs font-semibold text-foreground">
+                      Cấp độ kinh nghiệm mong muốn
+                    </label>
                     <div className="grid grid-cols-3 gap-2">
                       {[
                         { level: 0, label: 'Entry Level', desc: 'Cơ bản / 1 năm' },
                         { level: 1, label: 'Intermediate', desc: 'Thực chiến / 2-4 năm' },
-                        { level: 2, label: 'Expert / Lead', desc: 'Chuyên sâu / 5+ năm' }
+                        { level: 2, label: 'Expert / Lead', desc: 'Chuyên sâu / 5+ năm' },
                       ].map((item) => (
                         <button
                           type="button"
@@ -747,7 +1250,7 @@ export default function ClientProjectsPage() {
                       {[
                         { s: 0, label: 'Dự án Nhỏ', time: '1 - 2 tuần' },
                         { s: 1, label: 'Dự án Vừa', time: '1 - 3 tháng' },
-                        { s: 2, label: 'Dự án Lớn', time: '> 3 - 6 tháng' }
+                        { s: 2, label: 'Dự án Lớn', time: '> 3 - 6 tháng' },
                       ].map((item) => (
                         <button
                           type="button"
@@ -768,7 +1271,9 @@ export default function ClientProjectsPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">Ngày bắt đầu dự kiến</label>
+                      <label className="text-xs font-semibold text-foreground">
+                        Ngày bắt đầu dự kiến
+                      </label>
                       <input
                         type="date"
                         value={startDate}
@@ -777,7 +1282,9 @@ export default function ClientProjectsPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">Hạn chót bàn giao (Deadline)</label>
+                      <label className="text-xs font-semibold text-foreground">
+                        Hạn chót bàn giao (Deadline)
+                      </label>
                       <input
                         type="date"
                         value={endDate}
@@ -789,7 +1296,9 @@ export default function ClientProjectsPage() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">Ưu tiên vị trí địa lý</label>
+                      <label className="text-xs font-semibold text-foreground">
+                        Ưu tiên vị trí địa lý
+                      </label>
                       <input
                         type="text"
                         value={locationPreference}
@@ -799,7 +1308,9 @@ export default function ClientProjectsPage() {
                       />
                     </div>
                     <div className="space-y-1.5">
-                      <label className="text-xs font-semibold text-foreground">Ngôn ngữ trao đổi chính</label>
+                      <label className="text-xs font-semibold text-foreground">
+                        Ngôn ngữ trao đổi chính
+                      </label>
                       <input
                         type="text"
                         value={preferredLanguage}
@@ -812,11 +1323,13 @@ export default function ClientProjectsPage() {
                 </div>
               )}
 
-              {/* STEP 4: Budget & Pricing */}
+              {/* STEP 4: Budget & Pricing (VND) */}
               {wizardStep === 4 && (
                 <div className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-semibold text-foreground">Hình thức chi trả thù lao</label>
+                    <label className="text-xs font-semibold text-foreground">
+                      Hình thức chi trả thù lao
+                    </label>
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
@@ -840,7 +1353,9 @@ export default function ClientProjectsPage() {
                         }`}
                       >
                         <div className="text-xs font-bold">Theo giờ (Hourly Rate)</div>
-                        <div className="text-3xs text-text-muted">Chi trả dựa trên số giờ làm việc thực tế</div>
+                        <div className="text-3xs text-text-muted">
+                          Chi trả dựa trên số giờ làm việc thực tế
+                        </div>
                       </button>
                     </div>
                   </div>
@@ -848,46 +1363,54 @@ export default function ClientProjectsPage() {
                   {pricingType === 0 ? (
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-foreground">Ngân sách tối thiểu ($)</label>
+                        <label className="text-xs font-semibold text-foreground">
+                          Ngân sách tối thiểu (VND)
+                        </label>
                         <input
                           type="number"
                           value={budgetMin}
                           onChange={(e) => setBudgetMin(e.target.value)}
-                          placeholder="VD: 500"
-                          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-hidden"
+                          placeholder="VD: 10000000"
+                          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-xs text-foreground font-mono focus:border-primary focus:outline-hidden"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-foreground">Ngân sách tối đa ($)</label>
+                        <label className="text-xs font-semibold text-foreground">
+                          Ngân sách tối đa (VND)
+                        </label>
                         <input
                           type="number"
                           value={budgetMax}
                           onChange={(e) => setBudgetMax(e.target.value)}
-                          placeholder="VD: 2000"
-                          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-hidden"
+                          placeholder="VD: 30000000"
+                          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-xs text-foreground font-mono focus:border-primary focus:outline-hidden"
                         />
                       </div>
                     </div>
                   ) : (
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-foreground">Mức lương giờ min ($/h)</label>
+                        <label className="text-xs font-semibold text-foreground">
+                          Mức thù lao giờ tối thiểu (VND/giờ)
+                        </label>
                         <input
                           type="number"
                           value={hourlyRateMin}
                           onChange={(e) => setHourlyRateMin(e.target.value)}
-                          placeholder="VD: 20"
-                          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-hidden"
+                          placeholder="VD: 250000"
+                          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-xs text-foreground font-mono focus:border-primary focus:outline-hidden"
                         />
                       </div>
                       <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-foreground">Mức lương giờ max ($/h)</label>
+                        <label className="text-xs font-semibold text-foreground">
+                          Mức thù lao giờ tối đa (VND/giờ)
+                        </label>
                         <input
                           type="number"
                           value={hourlyRateMax}
                           onChange={(e) => setHourlyRateMax(e.target.value)}
-                          placeholder="VD: 45"
-                          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-xs text-foreground focus:border-primary focus:outline-hidden"
+                          placeholder="VD: 500000"
+                          className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-xs text-foreground font-mono focus:border-primary focus:outline-hidden"
                         />
                       </div>
                     </div>
@@ -917,7 +1440,9 @@ export default function ClientProjectsPage() {
                 {wizardStep > 1 ? (
                   <button
                     type="button"
-                    onClick={() => setWizardStep((prev) => (prev - 1) as any)}
+                    onClick={() =>
+                      setWizardStep((prev) => (prev - 1) as 1 | 2 | 3 | 4)
+                    }
                     className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle cursor-pointer"
                   >
                     <ArrowLeft className="h-3.5 w-3.5" /> Quay lại
@@ -930,7 +1455,9 @@ export default function ClientProjectsPage() {
                   <button
                     type="button"
                     disabled={wizardStep === 1 && (!title || !description)}
-                    onClick={() => setWizardStep((prev) => (prev + 1) as any)}
+                    onClick={() =>
+                      setWizardStep((prev) => (prev + 1) as 1 | 2 | 3 | 4)
+                    }
                     className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary-hover shadow-xs disabled:opacity-50 cursor-pointer"
                   >
                     Tiếp tục <ArrowRight className="h-3.5 w-3.5" />
@@ -939,14 +1466,160 @@ export default function ClientProjectsPage() {
                   <button
                     type="submit"
                     disabled={creating}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-5 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs cursor-pointer"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-5 py-2 text-xs font-bold text-white hover:bg-emerald-700 shadow-xs disabled:opacity-50 cursor-pointer"
                   >
                     <Sparkles className="h-4 w-4" />
-                    {creating ? 'Đang tạo dự án...' : 'Hoàn tất & Tạo dự án'}
+                    {creating
+                      ? 'Đang lưu...'
+                      : editingProject
+                      ? 'Lưu thay đổi dự án'
+                      : 'Hoàn tất & Tạo dự án'}
                   </button>
                 )}
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Offer Composer Modal (Direct Invite) */}
+      {offerCandidate && activeProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div>
+                <h3 className="text-sm font-bold text-foreground">
+                  Gửi Lời Mời & Bản Thảo Hợp Đồng
+                </h3>
+                <p className="text-2xs text-text-muted mt-0.5">
+                  Ứng viên: <strong className="text-foreground">{offerCandidate.freelancerName}</strong>
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOfferCandidate(null)}
+                className="rounded-lg p-1 text-text-muted hover:text-foreground cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSendOfferSubmit} className="space-y-3.5 text-xs">
+              {offerError && (
+                <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs font-medium text-rose-700">
+                  {offerError}
+                </div>
+              )}
+
+              <div>
+                <label className="block font-semibold text-foreground mb-1">
+                  Ngân sách đề xuất (VND) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  required
+                  value={offerBudget}
+                  onChange={(e) => setOfferBudget(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs font-mono text-foreground focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-foreground mb-1">
+                    Ngày bắt đầu <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={offerStartDate}
+                    onChange={(e) => setOfferStartDate(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-surface p-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-foreground mb-1">
+                    Ngày hoàn thành <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={offerEndDate}
+                    onChange={(e) => setOfferEndDate(e.target.value)}
+                    className="w-full rounded-lg border border-border bg-surface p-2 text-xs text-foreground focus:border-primary focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-foreground mb-1">
+                  Nội dung thỏa thuận / Lời nhắn mở đầu
+                </label>
+                <textarea
+                  rows={4}
+                  value={offerNotes}
+                  onChange={(e) => setOfferNotes(e.target.value)}
+                  placeholder="Ghi chú về phạm vi công việc, kỳ vọng bàn giao và điều khoản hợp tác..."
+                  className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground focus:border-primary focus:outline-none"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+                <button
+                  type="button"
+                  onClick={() => setOfferCandidate(null)}
+                  className="rounded-lg border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={offerSubmitting}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-1.5 text-xs font-semibold text-white hover:bg-primary-hover disabled:opacity-50 cursor-pointer"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                  {offerSubmitting ? 'Đang gửi...' : 'Xác nhận gửi lời mời'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Close Project Confirmation Modal */}
+      {closingProject && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <h3 className="text-sm font-bold text-foreground">Xác nhận đóng dự án</h3>
+              <button
+                type="button"
+                onClick={() => setClosingProject(null)}
+                className="rounded-lg p-1 text-text-muted hover:text-foreground cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="text-xs text-text-secondary leading-relaxed">
+              Bạn có chắc chắn muốn đóng dự án <strong>{closingProject.title}</strong>? Sau khi đóng, dự án sẽ chuyển sang trạng thái Đã đóng / Hủy và không thể tiếp tục tuyển thêm ứng viên.
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setClosingProject(null)}
+                className="rounded-lg border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+              <button
+                type="button"
+                disabled={closingLoading}
+                onClick={handleCloseProject}
+                className="rounded-lg bg-rose-600 px-4 py-1.5 text-xs font-bold text-white hover:bg-rose-700 disabled:opacity-50 cursor-pointer"
+              >
+                {closingLoading ? 'Đang đóng...' : 'Xác nhận đóng dự án'}
+              </button>
+            </div>
           </div>
         </div>
       )}

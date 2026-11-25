@@ -224,12 +224,38 @@ export default function MatchesPage() {
   };
 
   const latestDraft = selectedInvitation ? getLatestDraft(selectedInvitation) : null;
-  const isCreatedByMe =
-    Boolean(latestDraft && user && latestDraft.createdByName && latestDraft.createdByName.toLowerCase().includes(user.firstName.toLowerCase()));
+  const previousDraft =
+    selectedInvitation && latestDraft
+      ? selectedInvitation.contractDrafts.find(
+          (d) => d.versionNumber === latestDraft.versionNumber - 1
+        ) || null
+      : null;
+
+  const isCreatedByMe = Boolean(
+    latestDraft &&
+      user &&
+      (user.userId && latestDraft.createdById
+        ? latestDraft.createdById === user.userId
+        : latestDraft.createdByName
+            ?.toLowerCase()
+            .includes(`${user.firstName} ${user.lastName}`.trim().toLowerCase()))
+  );
   const isActionable =
     selectedInvitation &&
     (selectedInvitation.status === 1 || selectedInvitation.status === 2 || selectedInvitation.status === 4) &&
     !isCreatedByMe;
+
+  const getInvitationStatusMeta = (status: number) => {
+    if (status === 1 && isClient) {
+      return {
+        label: 'Đã gửi • Chờ ứng viên',
+        color: 'text-primary',
+        bg: 'bg-brand-50',
+        border: 'border-brand-200',
+      };
+    }
+    return INVITATION_STATUS[status] || INVITATION_STATUS[0];
+  };
 
   return (
     <DashboardLayout>
@@ -291,7 +317,7 @@ export default function MatchesPage() {
             ) : (
               <div className="space-y-2">
                 {invitations.map((inv) => {
-                  const status = INVITATION_STATUS[inv.status] || INVITATION_STATUS[0];
+                  const status = getInvitationStatusMeta(inv.status);
                   const isSelected = selectedInvitation?.id === inv.id;
                   const draft = getLatestDraft(inv);
 
@@ -315,7 +341,11 @@ export default function MatchesPage() {
                       </div>
 
                       <div className="mt-1.5 text-2xs text-text-muted">
-                        Từ: <strong className="text-foreground">{inv.clientName}</strong>
+                        {isClient ? (
+                          <>Gửi tới: <strong className="text-foreground">{inv.freelancerName}</strong></>
+                        ) : (
+                          <>Từ: <strong className="text-foreground">{inv.clientName}</strong></>
+                        )}
                       </div>
 
                       <div className="mt-2.5 flex items-center justify-between text-2xs pt-2 border-t border-border">
@@ -342,13 +372,18 @@ export default function MatchesPage() {
                 <div className="p-6 border-b border-border space-y-3">
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="text-2xs font-semibold text-primary uppercase tracking-wider">
                           Dự Án Ghép Nối
                         </span>
-                        <span className={`text-2xs font-semibold px-2 py-0.5 rounded border ${INVITATION_STATUS[selectedInvitation.status]?.bg} ${INVITATION_STATUS[selectedInvitation.status]?.color} ${INVITATION_STATUS[selectedInvitation.status]?.border}`}>
-                          {INVITATION_STATUS[selectedInvitation.status]?.label}
+                        <span className={`text-2xs font-semibold px-2 py-0.5 rounded border ${getInvitationStatusMeta(selectedInvitation.status).bg} ${getInvitationStatusMeta(selectedInvitation.status).color} ${getInvitationStatusMeta(selectedInvitation.status).border}`}>
+                          {getInvitationStatusMeta(selectedInvitation.status).label}
                         </span>
+                        {selectedInvitation.expiresAt && (
+                          <span className="text-2xs text-text-muted">
+                            • Hạn phản hồi: {formatDate(selectedInvitation.expiresAt)}
+                          </span>
+                        )}
                       </div>
                       <h2 className="text-lg font-bold text-foreground mt-1">
                         {selectedInvitation.projectTitle}
@@ -388,7 +423,9 @@ export default function MatchesPage() {
 
                   {isCreatedByMe && selectedInvitation.status === 4 && (
                     <div className="rounded-lg bg-brand-50 p-3 text-xs text-primary border border-brand-200">
-                      Bạn đã gửi đề xuất thương lượng mới nhất. Đang chờ khách hàng xem xét và phản hồi.
+                      {isClient
+                        ? 'Bạn đã gửi đề xuất thương lượng mới nhất. Đang chờ ứng viên xem xét và phản hồi.'
+                        : 'Bạn đã gửi đề xuất thương lượng mới nhất. Đang chờ khách hàng xem xét và phản hồi.'}
                     </div>
                   )}
 
@@ -410,23 +447,53 @@ export default function MatchesPage() {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                      <div className="p-3 rounded-lg border border-border bg-surface">
-                        <span className="text-2xs text-text-muted block">Ngân sách đề xuất</span>
+                      <div className={`p-3 rounded-lg border bg-surface ${previousDraft && previousDraft.proposedBudget !== latestDraft.proposedBudget ? 'border-amber-300 ring-1 ring-amber-200' : 'border-border'}`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-2xs text-text-muted block">Ngân sách đề xuất</span>
+                          {previousDraft && previousDraft.proposedBudget !== latestDraft.proposedBudget && (
+                            <span className="text-4xs font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">Đã thay đổi</span>
+                          )}
+                        </div>
                         <span className="text-sm font-bold text-foreground font-mono mt-0.5 block">
                           {formatCurrency(latestDraft.proposedBudget)}
                         </span>
+                        {previousDraft && previousDraft.proposedBudget !== latestDraft.proposedBudget && (
+                          <span className="text-3xs text-text-muted line-through font-mono block mt-0.5">
+                            Trước đó: {formatCurrency(previousDraft.proposedBudget)}
+                          </span>
+                        )}
                       </div>
-                      <div className="p-3 rounded-lg border border-border bg-surface">
-                        <span className="text-2xs text-text-muted block">Ngày bắt đầu dự kiến</span>
+                      <div className={`p-3 rounded-lg border bg-surface ${previousDraft && formatDate(previousDraft.proposedStartDate) !== formatDate(latestDraft.proposedStartDate) ? 'border-amber-300 ring-1 ring-amber-200' : 'border-border'}`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-2xs text-text-muted block">Ngày bắt đầu dự kiến</span>
+                          {previousDraft && formatDate(previousDraft.proposedStartDate) !== formatDate(latestDraft.proposedStartDate) && (
+                            <span className="text-4xs font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">Đã thay đổi</span>
+                          )}
+                        </div>
                         <span className="text-xs font-semibold text-foreground mt-0.5 block">
                           {formatDate(latestDraft.proposedStartDate)}
                         </span>
+                        {previousDraft && formatDate(previousDraft.proposedStartDate) !== formatDate(latestDraft.proposedStartDate) && (
+                          <span className="text-3xs text-text-muted line-through block mt-0.5">
+                            Trước đó: {formatDate(previousDraft.proposedStartDate)}
+                          </span>
+                        )}
                       </div>
-                      <div className="p-3 rounded-lg border border-border bg-surface">
-                        <span className="text-2xs text-text-muted block">Ngày hoàn thành dự kiến</span>
+                      <div className={`p-3 rounded-lg border bg-surface ${previousDraft && formatDate(previousDraft.proposedEndDate) !== formatDate(latestDraft.proposedEndDate) ? 'border-amber-300 ring-1 ring-amber-200' : 'border-border'}`}>
+                        <div className="flex items-center justify-between">
+                          <span className="text-2xs text-text-muted block">Ngày hoàn thành dự kiến</span>
+                          {previousDraft && formatDate(previousDraft.proposedEndDate) !== formatDate(latestDraft.proposedEndDate) && (
+                            <span className="text-4xs font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">Đã thay đổi</span>
+                          )}
+                        </div>
                         <span className="text-xs font-semibold text-foreground mt-0.5 block">
                           {formatDate(latestDraft.proposedEndDate)}
                         </span>
+                        {previousDraft && formatDate(previousDraft.proposedEndDate) !== formatDate(latestDraft.proposedEndDate) && (
+                          <span className="text-3xs text-text-muted line-through block mt-0.5">
+                            Trước đó: {formatDate(previousDraft.proposedEndDate)}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -580,7 +647,7 @@ export default function MatchesPage() {
 
               <div>
                 <label className="block text-xs font-semibold text-foreground mb-1">
-                  Ghi chú đề xuất gửi khách hàng
+                  {isClient ? 'Ghi chú đề xuất gửi ứng viên' : 'Ghi chú đề xuất gửi khách hàng'}
                 </label>
                 <textarea
                   rows={3}

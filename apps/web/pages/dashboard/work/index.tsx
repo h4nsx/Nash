@@ -18,7 +18,9 @@ import {
   FileCheck2,
   MessageSquare,
   Check,
-  RotateCcw
+  RotateCcw,
+  FileText,
+  Star
 } from 'lucide-react';
 
 export interface Milestone {
@@ -33,6 +35,15 @@ export interface Milestone {
   feedbackNotes: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ContractReview {
+  id: string;
+  reviewerId: string;
+  revieweeId: string;
+  rating: number;
+  comment: string;
+  createdAt: string;
 }
 
 export interface Contract {
@@ -50,6 +61,7 @@ export interface Contract {
   status: number; // 1: Active, 2: Completed, 3: Cancelled
   createdAt: string;
   milestones: Milestone[];
+  reviews?: ContractReview[];
 }
 
 export default function WorkContractsPage() {
@@ -90,6 +102,12 @@ export default function WorkContractsPage() {
   const [cancelReason, setCancelReason] = useState('');
   const [cancellingContract, setCancellingContract] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+
+  // Complete Contract modal state
+  const [targetContractToComplete, setTargetContractToComplete] = useState<Contract | null>(null);
+  const [completingContract, setCompletingContract] = useState(false);
+  const [completeError, setCompleteError] = useState<string | null>(null);
+  const [completedContractPromptId, setCompletedContractPromptId] = useState<string | null>(null);
 
   // Pay Milestone (VietQR & Card) modal state
   const [payingMilestone, setPayingMilestone] = useState<Milestone | null>(null);
@@ -207,25 +225,7 @@ export default function WorkContractsPage() {
     }
   };
 
-  // Client: Accept milestone
-  const handleAcceptMilestone = async (milestoneId: string) => {
-    try {
-      setReviewing(true);
-      const res = await apiClient(`/work/milestones/${milestoneId}/accept`, {
-        method: 'POST',
-      });
-      if (res.success) {
-        setReviewMilestone(null);
-        await fetchContracts();
-      }
-    } catch (err: unknown) {
-      alert(err instanceof ApiException ? err.error.message : 'Nghiệm thu thất bại.');
-    } finally {
-      setReviewing(false);
-    }
-  };
-
-  // Client: Open Payment Modal
+  // Client: Open Payment Modal (VietQR)
   const handleOpenPaymentModal = async (milestone: Milestone) => {
     setPayingMilestone(milestone);
     setPaymentQrData(null);
@@ -371,6 +371,33 @@ export default function WorkContractsPage() {
       }
     } finally {
       setCancellingContract(false);
+    }
+  };
+
+  // Client: Complete Contract
+  const handleCompleteContract = async () => {
+    if (!targetContractToComplete) return;
+
+    try {
+      setCompletingContract(true);
+      setCompleteError(null);
+      const res = await apiClient(`/work/contracts/${targetContractToComplete.id}/complete`, {
+        method: 'POST',
+      });
+      if (res.success) {
+        const finishedId = targetContractToComplete.id;
+        setTargetContractToComplete(null);
+        setCompletedContractPromptId(finishedId);
+        await fetchContracts();
+      }
+    } catch (err: unknown) {
+      if (err instanceof ApiException) {
+        setCompleteError(err.error?.message || 'Không thể hoàn thành hợp đồng.');
+      } else {
+        setCompleteError('Lỗi kết nối khi hoàn thành hợp đồng.');
+      }
+    } finally {
+      setCompletingContract(false);
     }
   };
 
@@ -576,6 +603,29 @@ export default function WorkContractsPage() {
           </div>
         )}
 
+        {completedContractPromptId && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-xs font-semibold text-emerald-800">
+            <span>
+              Hợp đồng đã được đánh dấu hoàn thành! Bạn có thể gửi đánh giá cho đối tác ngay bây giờ.
+            </span>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/dashboard/work/${completedContractPromptId}`}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+              >
+                <Star className="h-3.5 w-3.5" /> Đánh giá đối tác
+              </Link>
+              <button
+                type="button"
+                onClick={() => setCompletedContractPromptId(null)}
+                className="text-emerald-700 hover:text-emerald-900 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Contracts Content */}
         {loading ? (
           <div className="rounded-xl border border-border bg-surface p-12 text-center text-xs text-text-muted">
@@ -656,7 +706,27 @@ export default function WorkContractsPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
+                    <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-border">
+                      <Link
+                        href={`/dashboard/work/${contract.id}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-2xs font-semibold text-foreground hover:bg-surface-subtle transition-colors"
+                      >
+                        <FileText className="h-3.5 w-3.5 text-primary" />
+                        Xem hợp đồng & In
+                      </Link>
+
+                      {contract.status === 2 && (
+                        <Link
+                          href={`/dashboard/work/${contract.id}`}
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-2xs font-semibold text-white hover:bg-emerald-700 transition-colors"
+                        >
+                          <Star className="h-3.5 w-3.5" />
+                          Đánh giá đối tác
+                        </Link>
+                      )}
+
                       <div className="text-left sm:text-right">
                         <span className="text-xs font-bold text-foreground">
                           {acceptedMilestones}/{totalMilestones} mốc
@@ -678,7 +748,19 @@ export default function WorkContractsPage() {
                           Tiến độ các mốc thanh toán ({totalMilestones})
                         </div>
                         {isClient && contract.status === 1 && (
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {(totalMilestones === 0 || acceptedMilestones === totalMilestones) && (
+                              <button
+                                onClick={() => {
+                                  setTargetContractToComplete(contract);
+                                  setCompleteError(null);
+                                }}
+                                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1 text-2xs font-semibold text-white hover:bg-emerald-700 cursor-pointer shadow-2xs"
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Hoàn thành hợp đồng
+                              </button>
+                            )}
                             <button
                               onClick={() => {
                                 setTargetContractForMilestone(contract);
@@ -979,13 +1061,13 @@ export default function WorkContractsPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block font-semibold text-foreground mb-1">Số tiền thanh toán ($) *</label>
+                  <label className="block font-semibold text-foreground mb-1">Số tiền thanh toán (VND) *</label>
                   <input
                     type="number"
                     required
                     value={newMilestoneAmount}
                     onChange={(e) => setNewMilestoneAmount(e.target.value)}
-                    placeholder="VD: 500"
+                    placeholder="VD: 5000000"
                     className="w-full rounded-lg border border-border bg-surface p-2.5 text-xs text-foreground font-mono focus:border-primary focus:outline-none"
                   />
                 </div>
@@ -1018,6 +1100,52 @@ export default function WorkContractsPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Complete Contract Confirmation Modal */}
+      {targetContractToComplete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-navy-950/60 p-4 backdrop-blur-xs">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-surface p-6 shadow-2xl animate-in fade-in zoom-in-95 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <h3 className="text-sm font-bold text-foreground">Xác nhận hoàn thành hợp đồng</h3>
+              <button
+                type="button"
+                onClick={() => setTargetContractToComplete(null)}
+                className="rounded-lg p-1 text-text-muted hover:text-foreground cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            {completeError && (
+              <div className="rounded-lg bg-danger-bg p-3 text-xs text-danger border border-rose-200">
+                {completeError}
+              </div>
+            )}
+
+            <p className="text-xs text-text-secondary leading-relaxed">
+              Tất cả các mốc của hợp đồng <strong>{targetContractToComplete.projectTitle}</strong> đã được nghiệm thu. Bạn có muốn đóng và đánh dấu hợp đồng này là <strong>Hoàn thành</strong> để mở tính năng đánh giá đối tác?
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-border">
+              <button
+                type="button"
+                onClick={() => setTargetContractToComplete(null)}
+                className="rounded-lg border border-border px-3.5 py-1.5 text-xs font-medium text-foreground hover:bg-surface-subtle cursor-pointer"
+              >
+                Chưa hoàn thành
+              </button>
+              <button
+                type="button"
+                disabled={completingContract}
+                onClick={handleCompleteContract}
+                className="rounded-lg bg-emerald-600 hover:bg-emerald-700 px-4 py-1.5 text-xs font-bold text-white shadow-xs disabled:opacity-50 cursor-pointer"
+              >
+                {completingContract ? 'Đang xác nhận...' : 'Hoàn thành hợp đồng'}
+              </button>
+            </div>
           </div>
         </div>
       )}

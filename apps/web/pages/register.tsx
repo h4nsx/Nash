@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { apiClient, ApiException } from '@/lib/api/client';
@@ -18,6 +18,16 @@ export default function RegisterPage() {
     password: '',
     role: 'Freelancer', // Default role
   });
+
+  useEffect(() => {
+    if (!router.isReady) return;
+    const roleParam = typeof router.query.role === 'string' ? router.query.role.toLowerCase() : '';
+    if (roleParam === 'client') {
+      setForm((prev) => ({ ...prev, role: 'Client' }));
+    } else if (roleParam === 'freelancer') {
+      setForm((prev) => ({ ...prev, role: 'Freelancer' }));
+    }
+  }, [router.isReady, router.query.role]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

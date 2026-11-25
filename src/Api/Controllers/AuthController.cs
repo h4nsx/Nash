@@ -1,6 +1,8 @@
+using System.Security.Claims;
 using Application.Common.Interfaces;
 using Application.Common.Models;
 using Domain.Enums;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers;
@@ -93,6 +95,58 @@ public class AuthController : ControllerBase
 
         return Ok(ApiResponse<object>.Ok(new { Message = "Đặt lại mật khẩu thành công. Bạn có thể đăng nhập bằng mật khẩu mới." }));
     }
+
+    [Authorize]
+    [HttpGet("me")]
+    public ActionResult<ApiResponse<object>> GetMe()
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+        var email = User.FindFirstValue(ClaimTypes.Email)
+            ?? User.FindFirstValue("email")
+            ?? string.Empty;
+        var firstName = User.FindFirstValue(ClaimTypes.GivenName) ?? string.Empty;
+        var lastName = User.FindFirstValue(ClaimTypes.Surname) ?? string.Empty;
+        var role = User.FindFirstValue(ClaimTypes.Role) ?? string.Empty;
+
+        return Ok(ApiResponse<object>.Ok(new
+        {
+            UserId = userId,
+            Email = email,
+            FirstName = firstName,
+            LastName = lastName,
+            Role = role
+        }));
+    }
+
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<ActionResult<ApiResponse<object>>> ChangePassword([FromBody] ChangePasswordRequest request)
+    {
+        var userIdClaim = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (!Guid.TryParse(userIdClaim, out var userId)) return Unauthorized();
+
+        var (success, errors) = await _identityService.ChangePasswordAsync(userId, request.CurrentPassword, request.NewPassword);
+        if (!success)
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                StatusCode = 400,
+                Code = "CHANGE_PASSWORD_FAILED",
+                Message = errors.FirstOrDefault() ?? "Không thể đổi mật khẩu.",
+                Errors = new Dictionary<string, string[]> { { "Identity", errors } }
+            });
+        }
+
+        return Ok(ApiResponse<object>.Ok(new { Message = "Đổi mật khẩu thành công." }));
+    }
+}
+
+public class ChangePasswordRequest
+{
+    public string CurrentPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
 }
 
 public class ForgotPasswordRequest

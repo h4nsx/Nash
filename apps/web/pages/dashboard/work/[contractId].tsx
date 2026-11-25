@@ -4,11 +4,13 @@ import { useRouter } from 'next/router';
 import Link from 'next/link';
 import { DashboardLayout } from '@/components/dashboard/DashboardLayout';
 import { apiClient, ApiException } from '@/lib/api/client';
+import { useAuth } from '@/lib/auth/AuthContext';
 import { Contract } from './index';
 import { ArrowLeft, Printer, ShieldCheck, CheckCircle2, Building, User, Calendar, FileText, Star, MessageSquare } from 'lucide-react';
 
 export default function ContractDetailPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const { contractId } = router.query;
   const [contract, setContract] = useState<Contract | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,9 +74,13 @@ export default function ContractDetailPage() {
 
       if (res.success) {
         setReviewSuccess('Đã gửi đánh giá thành công!');
+        const refreshed = await apiClient<Contract>(`/work/contracts/${contractId}`);
+        if (refreshed.success && refreshed.data) {
+          setContract(refreshed.data);
+        }
         setTimeout(() => {
           setIsReviewModalOpen(false);
-        }, 1500);
+        }, 1200);
       } else {
         setReviewError(res.message || 'Không thể gửi đánh giá.');
       }
@@ -88,6 +94,10 @@ export default function ContractDetailPage() {
       setSubmittingReview(false);
     }
   };
+
+  const hasReviewed = Boolean(
+    user?.userId && contract?.reviews?.some((r) => r.reviewerId === user.userId)
+  );
 
   return (
     <DashboardLayout>
@@ -106,7 +116,7 @@ export default function ContractDetailPage() {
           </Link>
 
           <div className="flex items-center gap-2">
-            {contract?.status === 2 && (
+            {contract?.status === 2 && !hasReviewed && (
               <button
                 onClick={() => setIsReviewModalOpen(true)}
                 className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3.5 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 shadow-xs cursor-pointer transition-colors"
@@ -266,6 +276,33 @@ export default function ContractDetailPage() {
                 </div>
               </div>
             </div>
+
+            {contract.reviews && contract.reviews.length > 0 && (
+              <div className="mt-8 pt-6 border-t border-border space-y-3 print:hidden">
+                <h3 className="text-xs font-bold uppercase tracking-wider text-foreground">
+                  Đánh giá sau hợp đồng ({contract.reviews.length})
+                </h3>
+                <div className="space-y-2.5">
+                  {contract.reviews.map((rev) => (
+                    <div key={rev.id} className="rounded-lg border border-border bg-surface-subtle p-3.5 text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-foreground">
+                          {rev.reviewerId === contract.clientId ? contract.clientName : contract.freelancerName}
+                        </span>
+                        <div className="flex items-center gap-1 text-amber-500 font-bold">
+                          <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
+                          <span>{rev.rating}/5</span>
+                        </div>
+                      </div>
+                      <p className="text-text-secondary leading-relaxed">{rev.comment}</p>
+                      <span className="text-3xs text-text-muted block">
+                        {new Date(rev.createdAt).toLocaleDateString('vi-VN')}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

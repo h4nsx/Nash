@@ -81,6 +81,7 @@ public class IdentityService : IIdentityService
 
         var authResponse = new AuthResponse
         {
+            UserId = domainUser.Id,
             Email = domainUser.Email,
             Role = domainUser.Role.ToString(),
             FirstName = domainUser.FirstName,

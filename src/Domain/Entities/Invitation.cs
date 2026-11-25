@@ -21,4 +21,6 @@ public class Invitation
     public User Freelancer { get; set; } = null!;
     public User Sender { get; set; } = null!;
     public ICollection<ContractDraft> ContractDrafts { get; set; } = new List<ContractDraft>();
+
+    public bool IsExpired(DateTime utcNow) => Status == InvitationStatus.Expired || ExpiresAt <= utcNow;
 }

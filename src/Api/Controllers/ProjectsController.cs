@@ -128,6 +128,28 @@ public class ProjectsController : ControllerBase
     }
 
     [Authorize(Roles = "Client")]
+    [HttpPost("{projectId}/close")]
+    public async Task<ActionResult<ApiResponse<object>>> CloseProject(Guid projectId)
+    {
+        var clientId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (clientId == null) return Unauthorized();
+
+        var (success, errors) = await _projectService.CloseProjectAsync(projectId, clientId);
+
+        if (!success)
+        {
+            return BadRequest(new ApiErrorResponse
+            {
+                StatusCode = 400,
+                Code = "CLOSE_PROJECT_FAILED",
+                Message = errors.FirstOrDefault() ?? "Không thể đóng dự án."
+            });
+        }
+
+        return Ok(ApiResponse<object>.Ok(new { Message = "Đóng dự án thành công." }));
+    }
+
+    [Authorize(Roles = "Client")]
     [HttpGet("my-projects")]
     public async Task<ActionResult<ApiResponse<List<ProjectDto>>>> GetMyProjects()
     {

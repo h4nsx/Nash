@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { apiClient } from '../api/client';
 
 export interface User {
+  userId?: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -27,7 +28,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const storedUser = localStorage.getItem('nash_user');
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser));
+        const parsed = JSON.parse(storedUser) as User;
+        setUser(parsed);
+
+        if (!parsed.userId) {
+          apiClient<User>('/auth/me')
+            .then((res) => {
+              if (res.success && res.data) {
+                setUser(res.data);
+                localStorage.setItem('nash_user', JSON.stringify(res.data));
+              }
+            })
+            .catch(() => {
+              // Ignore silent refresh failure if session is invalid/offline
+            });
+        }
       } catch {
         localStorage.removeItem('nash_user');
       }

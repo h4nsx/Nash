@@ -70,7 +70,12 @@ public class HandshakeController : ControllerBase
 
         if (!success)
         {
-            return BadRequest(new ApiErrorResponse { StatusCode = 400, Code = "COUNTER_OFFER_FAILED", Message = errors.FirstOrDefault() ?? "Không thể gửi đề nghị thương lượng." });
+            var msg = errors.FirstOrDefault() ?? "Không thể gửi đề nghị thương lượng.";
+            if (msg.Contains("hết hạn") || msg.Contains("đã đóng"))
+            {
+                return Conflict(new ApiErrorResponse { StatusCode = 409, Code = "INVITATION_STATE_CONFLICT", Message = msg });
+            }
+            return BadRequest(new ApiErrorResponse { StatusCode = 400, Code = "COUNTER_OFFER_FAILED", Message = msg });
         }
 
         return Ok(ApiResponse<object>.Ok(new { Message = "Gửi đề nghị thương lượng thành công." }));
@@ -86,7 +91,12 @@ public class HandshakeController : ControllerBase
 
         if (!success)
         {
-            return BadRequest(new ApiErrorResponse { StatusCode = 400, Code = "ACCEPT_INVITATION_FAILED", Message = errors.FirstOrDefault() ?? "Không thể chấp nhận lời mời." });
+            var msg = errors.FirstOrDefault() ?? "Không thể chấp nhận lời mời.";
+            if (msg.Contains("hết hạn") || msg.Contains("đã hoàn thành") || msg.Contains("hợp đồng đang hoạt động"))
+            {
+                return Conflict(new ApiErrorResponse { StatusCode = 409, Code = "INVITATION_STATE_CONFLICT", Message = msg });
+            }
+            return BadRequest(new ApiErrorResponse { StatusCode = 400, Code = "ACCEPT_INVITATION_FAILED", Message = msg });
         }
 
         return Ok(ApiResponse<object>.Ok(new { Message = "Chấp nhận lời mời thành công. Hợp đồng đã được tạo." }));

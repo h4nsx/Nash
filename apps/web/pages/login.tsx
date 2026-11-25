@@ -24,7 +24,7 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const res = await apiClient<{ role: string; email: string; firstName: string; lastName: string; token?: string }>('/auth/login', {
+      const res = await apiClient<{ userId?: string; role: string; email: string; firstName: string; lastName: string; token?: string }>('/auth/login', {
         method: 'POST',
         body: JSON.stringify(form),
       });
